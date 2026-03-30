@@ -32,7 +32,7 @@ export default {
   methods: {
     async crearProducto() {
       try {
-        await axios.post('http://localhost:8000/productos', {
+        await axios.post('https://kardex-app.onrender.com/productos', {
           nombre: this.nombre,
           stock: this.stock
         })
