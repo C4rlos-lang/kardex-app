@@ -1,0 +1,56 @@
+from fastapi import FastAPI, Depends
+from fastapi.middleware.cors import CORSMiddleware  # ← agrega esto
+from sqlalchemy import create_engine, Column, Integer, String, Float
+from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy.orm import sessionmaker, Session
+from pydantic import BaseModel
+
+# ── 1. Configurar la base de datos ────────────────────────────────
+engine = create_engine("sqlite:///./productos.db", connect_args={"check_same_thread": False})
+SessionLocal = sessionmaker(bind=engine)
+Base = declarative_base()
+
+# ── 2. Definir la tabla ───────────────────────────────────────────
+class Producto(Base):
+    __tablename__ = "productos"
+    id     = Column(Integer, primary_key=True)
+    nombre = Column(String)
+    stock  = Column(Float)
+
+Base.metadata.create_all(bind=engine)
+
+# ── 3. Schema ─────────────────────────────────────────────────────
+class ProductoSchema(BaseModel):
+    nombre: str
+    stock: float
+
+# ── 4. Sesión de base de datos ────────────────────────────────────
+def get_db():
+    db = SessionLocal()
+    try:
+        yield db
+    finally:
+        db.close()
+
+# ── 5. App y endpoints ────────────────────────────────────────────
+app = FastAPI()
+
+# ── CORS ──────────────────────────────────────────────────────────
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:5173"],
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+@app.get("/productos")
+def listar(db: Session = Depends(get_db)):
+    return db.query(Producto).all()
+
+@app.post("/productos")
+def crear(producto: ProductoSchema, db: Session = Depends(get_db)):
+    nuevo = Producto(nombre=producto.nombre, stock=producto.stock)
+    db.add(nuevo)
+    db.commit()
+    db.refresh(nuevo)
+    return nuevo
