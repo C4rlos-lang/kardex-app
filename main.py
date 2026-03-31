@@ -6,7 +6,7 @@ from sqlalchemy.orm import sessionmaker, Session
 from pydantic import BaseModel
 
 # ── 1. Configurar la base de datos ────────────────────────────────
-engine = create_engine("postgresql://postgres.thcdadlejpdhaaekyost:Kardex2026App@aws-1-us-east-1.pooler.supabase.com:5432/postgres")
+engine = create_engine("postgresql://postgres.thcdadlejpdhaaekyost:Kardex2026nuevo@aws-1-us-east-1.pooler.supabase.com:6543/postgres")
 SessionLocal = sessionmaker(bind=engine)
 Base = declarative_base()
 
