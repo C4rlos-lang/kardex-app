@@ -5,7 +5,7 @@ from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker, Session
 from pydantic import BaseModel
 from typing import Optional
-foto_url:  Optional[str] = None
+
 
 # ── 1. Configurar la base de datos ────────────────────────────────
 engine = create_engine("postgresql://postgres.thcdadlejpdhaaekyost:Kardex2026App@aws-1-us-east-1.pooler.supabase.com:6543/postgres?sslmode=require")
@@ -23,6 +23,7 @@ class Producto(Base):
     precio      = Column(Float)
     stock       = Column(Float)
     foto_url    = Column(String, nullable=True)
+    marca       = Column(String, nullable=True)
 
 Base.metadata.create_all(bind=engine)
 
@@ -36,6 +37,7 @@ class ProductoSchema(BaseModel):
     precio:    float
     stock:     float
     foto_url:  Optional[str] = None
+    marca: Optional[str] = None
 
 # ── 4. Sesión de base de datos ────────────────────────────────────
 def get_db():
@@ -68,7 +70,9 @@ def crear(producto: ProductoSchema, db: Session = Depends(get_db)):
         proveedor=producto.proveedor,
         precio=producto.precio,
         stock=producto.stock,
+        marca=producto.marca,
         foto_url=producto.foto_url
+        
     )
     db.add(nuevo)
     db.commit()
