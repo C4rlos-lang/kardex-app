@@ -25,9 +25,15 @@ class Producto(Base):
 Base.metadata.create_all(bind=engine)
 
 # ── 3. Schema ─────────────────────────────────────────────────────
+# ── 3. Schema ─────────────────────────────────────────────────────
 class ProductoSchema(BaseModel):
-    nombre: str
-    stock: float
+    sku:       str
+    nombre:    str
+    categoria: str
+    proveedor: str
+    precio:    float
+    stock:     float
+    foto_url:  str = None
 
 # ── 4. Sesión de base de datos ────────────────────────────────────
 def get_db():
@@ -51,10 +57,17 @@ app.add_middleware(
 @app.get("/productos")
 def listar(db: Session = Depends(get_db)):
     return db.query(Producto).all()
-
 @app.post("/productos")
 def crear(producto: ProductoSchema, db: Session = Depends(get_db)):
-    nuevo = Producto(nombre=producto.nombre, stock=producto.stock)
+    nuevo = Producto(
+        sku=producto.sku,
+        nombre=producto.nombre,
+        categoria=producto.categoria,
+        proveedor=producto.proveedor,
+        precio=producto.precio,
+        stock=producto.stock,
+        foto_url=producto.foto_url
+    )
     db.add(nuevo)
     db.commit()
     db.refresh(nuevo)
