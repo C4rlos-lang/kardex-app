@@ -2,7 +2,8 @@
   <div class="sidebar">
     <div class="logo">📦 Kardex</div>
     <nav>
-      <router-link to="/productos">📦 Productos</router-link>
+      <router-link to="/productos">➕ Crear Producto</router-link>
+      <router-link to="/lista">📋 Lista de Productos</router-link>
     </nav>
   </div>
 </template>
