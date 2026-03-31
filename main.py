@@ -13,9 +13,14 @@ Base = declarative_base()
 # ── 2. Definir la tabla ───────────────────────────────────────────
 class Producto(Base):
     __tablename__ = "productos"
-    id     = Column(Integer, primary_key=True)
-    nombre = Column(String)
-    stock  = Column(Float)
+    id          = Column(Integer, primary_key=True)
+    sku         = Column(String, unique=True)
+    nombre      = Column(String)
+    categoria   = Column(String)
+    proveedor   = Column(String)
+    precio      = Column(Float)
+    stock       = Column(Float)
+    foto_url    = Column(String, nullable=True)
 
 Base.metadata.create_all(bind=engine)
 

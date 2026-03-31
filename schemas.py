@@ -1,5 +1,10 @@
 from pydantic import BaseModel
 
 class ProductoSchema(BaseModel):
-    nombre: str
-    stock: float
+    sku:        str
+    nombre:     str
+    categoria:  str
+    proveedor:  str
+    precio:     float
+    stock:      float
+    foto_url:   str = None
