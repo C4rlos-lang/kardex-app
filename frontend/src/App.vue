@@ -24,6 +24,10 @@
         <input v-model="form.precio" type="number" placeholder="Ej: 25000" />
       </div>
       <div>
+      <label>Marca</label>
+      <input v-model="form.marca" type="text" placeholder="Ej: Nike" />
+      </div>
+      <div>
         <label>Stock</label>
         <input v-model="form.stock" type="number" placeholder="Ej: 100" />
       </div>
@@ -45,6 +49,7 @@ export default {
         nombre: '',
         categoria: '',
         proveedor: '',
+        marca: '',
         precio: 0,
         stock: 0,
         foto_url: null
