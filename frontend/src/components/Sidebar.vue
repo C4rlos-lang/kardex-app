@@ -3,7 +3,7 @@
     <div class="logo">📦 Kardex</div>
     <nav>
       <router-link to="/productos">➕ Crear Producto</router-link>
-      <router-link to="/lista">📋 Lista de Productos</router-link>
+      <router-link to="/lista">🏭 Bodega Principal</router-link>
       <router-link to="/almacenes">🏪 Almacenes</router-link>
       <router-link to="/lista-almacenes">📋 Lista Almacenes</router-link>
     </nav>
