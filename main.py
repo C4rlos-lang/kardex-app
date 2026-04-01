@@ -31,6 +31,20 @@ class Producto(Base):
 Base.metadata.create_all(bind=engine)
 
 
+# --- Almacen 
+
+class Almacen(Base):
+    __tablename__ = "almacenes"
+    id            = Column(Integer, primary_key=True)
+    nombre        = Column(String, nullable=False)
+    direccion     = Column(String, nullable=True)
+    ciudad        = Column(String, nullable=True)
+    responsable   = Column(String, nullable=True)
+    estado        = Column(String, default="activo")
+    fecha_registro = Column(DateTime, default=datetime.utcnow)
+
+
+
 # ── 3. Schema ─────────────────────────────────────────────────────
 class ProductoSchema(BaseModel):
     sku:       str
@@ -41,6 +55,14 @@ class ProductoSchema(BaseModel):
     stock:     float
     foto_url:  Optional[str] = None
     marca: Optional[str] = None
+
+class AlmacenSchema(BaseModel):
+    nombre:      str
+    direccion:   Optional[str] = None
+    ciudad:      Optional[str] = None
+    responsable: Optional[str] = None
+    estado:      Optional[str] = "activo"
+
 
 # ── 4. Sesión de base de datos ────────────────────────────────────
 def get_db():
@@ -76,6 +98,25 @@ def crear(producto: ProductoSchema, db: Session = Depends(get_db)):
         marca=producto.marca,
         foto_url=producto.foto_url
         
+    )
+    db.add(nuevo)
+    db.commit()
+    db.refresh(nuevo)
+    return nuevo
+
+
+@app.get("/almacenes")
+def listar_almacenes(db: Session = Depends(get_db)):
+    return db.query(Almacen).all()
+
+@app.post("/almacenes")
+def crear_almacen(almacen: AlmacenSchema, db: Session = Depends(get_db)):
+    nuevo = Almacen(
+        nombre=almacen.nombre,
+        direccion=almacen.direccion,
+        ciudad=almacen.ciudad,
+        responsable=almacen.responsable,
+        estado=almacen.estado
     )
     db.add(nuevo)
     db.commit()

@@ -4,6 +4,7 @@
     <nav>
       <router-link to="/productos">➕ Crear Producto</router-link>
       <router-link to="/lista">📋 Lista de Productos</router-link>
+      <router-link to="/almacenes">🏪 Almacenes</router-link>
     </nav>
   </div>
 </template>
