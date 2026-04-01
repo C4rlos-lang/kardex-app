@@ -137,16 +137,11 @@ export default {
       porPagina: 10,
       panelAbierto: false,
       almacenes: [],
-      transferencia: {
-        almacen_id: '',
-        producto_id: '',
-        cantidad: 0
-      },
+      transferencia: { almacen_id: '', producto_id: '', cantidad: 0 },
       mensajeTransferencia: '',
       exitoTransferencia: false,
       cargandoTransferencia: false
-    }   // ← este cierra el return
-  },
+    }
   },
   computed: {
     productosFiltrados() {
@@ -169,27 +164,45 @@ export default {
     }
   },
   watch: {
-    busqueda() {
-      this.paginaActual = 1
-    }
+    busqueda() { this.paginaActual = 1 }
   },
   methods: {
-    irAPagina(pagina) {
-      this.paginaActual = pagina
-    },
-    paginaAnterior() {
-      if (this.paginaActual > 1) this.paginaActual--
-    },
-    paginaSiguiente() {
-      if (this.paginaActual < this.totalPaginas) this.paginaActual++
+    irAPagina(pagina) { this.paginaActual = pagina },
+    paginaAnterior() { if (this.paginaActual > 1) this.paginaActual-- },
+    paginaSiguiente() { if (this.paginaActual < this.totalPaginas) this.paginaActual++ },
+    async confirmarTransferencia() {
+      if (!this.transferencia.almacen_id || !this.transferencia.producto_id || !this.transferencia.cantidad) {
+        this.mensajeTransferencia = 'Por favor llena todos los campos'
+        this.exitoTransferencia = false
+        return
+      }
+      this.cargandoTransferencia = true
+      try {
+        await axios.post('https://kardex-app.onrender.com/transferencias', {
+          almacen_id: this.transferencia.almacen_id,
+          producto_id: this.transferencia.producto_id,
+          cantidad: parseFloat(this.transferencia.cantidad)
+        })
+        this.mensajeTransferencia = '¡Transferencia realizada exitosamente!'
+        this.exitoTransferencia = true
+        this.transferencia = { almacen_id: '', producto_id: '', cantidad: 0 }
+        const { data } = await axios.get('https://kardex-app.onrender.com/productos')
+        this.productos = data
+      } catch (error) {
+        this.mensajeTransferencia = error.response?.data?.detail || 'Error al transferir'
+        this.exitoTransferencia = false
+      }
+      this.cargandoTransferencia = false
     }
   },
   async mounted() {
     try {
       const { data } = await axios.get('https://kardex-app.onrender.com/productos')
       this.productos = data
+      const resAlmacenes = await axios.get('https://kardex-app.onrender.com/almacenes')
+      this.almacenes = resAlmacenes.data
     } catch (error) {
-      console.error('Error cargando productos', error)
+      console.error('Error cargando datos', error)
     }
     this.cargando = false
   }
