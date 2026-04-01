@@ -5,6 +5,8 @@ from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker, Session
 from pydantic import BaseModel
 from typing import Optional
+from datetime import datetime
+from sqlalchemy import create_engine, Column, Integer, String, Float, DateTime
 
 
 # ── 1. Configurar la base de datos ────────────────────────────────
@@ -24,6 +26,7 @@ class Producto(Base):
     stock       = Column(Float)
     foto_url    = Column(String, nullable=True)
     marca       = Column(String, nullable=True)
+    fecha_registro = Column(DateTime, default=datetime.utcnow)
 
 Base.metadata.create_all(bind=engine)
 
