@@ -10,6 +10,23 @@
       />
     </div>
 
+    <!-- Botón transferir -->
+<button class="btn-transferir" @click="panelAbierto = true">
+  📦 Transferir
+</button>
+
+<!-- Panel lateral derecho -->
+<div class="overlay" v-if="panelAbierto" @click.self="panelAbierto = false"></div>
+<div class="panel" :class="{ abierto: panelAbierto }">
+  <div class="panel-header">
+    <h2>Nueva Transferencia</h2>
+    <button class="cerrar" @click="panelAbierto = false">✕</button>
+  </div>
+  <div class="panel-body">
+    <p>Aquí irá el formulario de transferencia</p>
+  </div>
+</div>
+
     <p v-if="cargando">Cargando productos...</p>
 
     <table v-else>
@@ -80,7 +97,8 @@ export default {
       busqueda: '',
       cargando: true,
       paginaActual: 1,
-      porPagina: 10
+      porPagina: 10,
+      panelAbierto: false
     }
   },
   computed: {
@@ -141,6 +159,63 @@ h1 { margin-bottom: 16px; color: #1B3A6B; }
   font-size: 15px;
   border: 1px solid #ccc;
   border-radius: 8px;
+}
+.btn-transferir {
+  margin-bottom: 16px;
+  padding: 10px 20px;
+  background: #2E5FA3;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 15px;
+}
+.overlay {
+  position: fixed;
+  top: 0; left: 0;
+  width: 100%; height: 100%;
+  background: rgba(0,0,0,0.3);
+  z-index: 100;
+}
+.panel {
+  position: fixed;
+  top: 0; right: -450px;
+  width: 450px;
+  height: 100%;
+  background: white;
+  box-shadow: -4px 0 20px rgba(0,0,0,0.15);
+  z-index: 101;
+  transition: right 0.3s ease;
+  display: flex;
+  flex-direction: column;
+}
+.panel.abierto {
+  right: 0;
+}
+.panel-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 20px 24px;
+  border-bottom: 1px solid #eee;
+  background: #1B3A6B;
+  color: white;
+}
+.panel-header h2 {
+  margin: 0;
+  font-size: 18px;
+}
+.cerrar {
+  background: none;
+  border: none;
+  color: white;
+  font-size: 20px;
+  cursor: pointer;
+}
+.panel-body {
+  padding: 24px;
+  overflow-y: auto;
+  flex: 1;
 }
 table {
   width: 100%;
