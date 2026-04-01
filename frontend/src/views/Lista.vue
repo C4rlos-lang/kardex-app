@@ -26,7 +26,7 @@
         </tr>
       </thead>
       <tbody>
-        <tr v-for="producto in productosFiltrados" :key="producto.id">
+        <tr v-for="producto in productosPaginados" :key="producto.id">
           <td>
             <img v-if="producto.foto_url" :src="producto.foto_url" class="foto" />
             <span v-else>Sin foto</span>
@@ -39,13 +39,34 @@
           <td>${{ producto.precio }}</td>
           <td>{{ producto.stock }}</td>
         </tr>
-        <tr v-if="productosFiltrados.length === 0">
+        <tr v-if="productosPaginados.length === 0">
           <td colspan="8" style="text-align:center; color:#888;">
             No se encontraron productos
           </td>
         </tr>
       </tbody>
     </table>
+
+    <!-- Paginación -->
+    <div class="paginacion" v-if="totalPaginas > 1">
+      <button @click="paginaAnterior" :disabled="paginaActual === 1">← Anterior</button>
+      
+      <span v-for="pagina in totalPaginas" :key="pagina">
+        <button 
+          @click="irAPagina(pagina)" 
+          :class="pagina === paginaActual ? 'activa' : ''"
+        >
+          {{ pagina }}
+        </button>
+      </span>
+
+      <button @click="paginaSiguiente" :disabled="paginaActual === totalPaginas">Siguiente →</button>
+      
+      <span class="info">
+        Página {{ paginaActual }} de {{ totalPaginas }} 
+        ({{ productosFiltrados.length }} productos)
+      </span>
+    </div>
   </div>
 </template>
 
@@ -57,7 +78,9 @@ export default {
     return {
       productos: [],
       busqueda: '',
-      cargando: true
+      cargando: true,
+      paginaActual: 1,
+      porPagina: 20
     }
   },
   computed: {
@@ -70,6 +93,30 @@ export default {
         (p.marca && p.marca.toLowerCase().includes(b)) ||
         (p.categoria && p.categoria.toLowerCase().includes(b))
       )
+    },
+    totalPaginas() {
+      return Math.ceil(this.productosFiltrados.length / this.porPagina)
+    },
+    productosPaginados() {
+      const inicio = (this.paginaActual - 1) * this.porPagina
+      const fin = inicio + this.porPagina
+      return this.productosFiltrados.slice(inicio, fin)
+    }
+  },
+  watch: {
+    busqueda() {
+      this.paginaActual = 1
+    }
+  },
+  methods: {
+    irAPagina(pagina) {
+      this.paginaActual = pagina
+    },
+    paginaAnterior() {
+      if (this.paginaActual > 1) this.paginaActual--
+    },
+    paginaSiguiente() {
+      if (this.paginaActual < this.totalPaginas) this.paginaActual++
     }
   },
   async mounted() {
@@ -86,9 +133,7 @@ export default {
 
 <style scoped>
 h1 { margin-bottom: 16px; color: #1B3A6B; }
-.buscador {
-  margin-bottom: 20px;
-}
+.buscador { margin-bottom: 20px; }
 .buscador input {
   width: 100%;
   max-width: 500px;
@@ -114,5 +159,37 @@ tbody tr:hover { background: #D6E4F7; }
   height: 50px;
   object-fit: cover;
   border-radius: 4px;
+}
+.paginacion {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 20px;
+  flex-wrap: wrap;
+}
+.paginacion button {
+  padding: 6px 12px;
+  border: 1px solid #ccc;
+  background: white;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 14px;
+}
+.paginacion button:hover {
+  background: #D6E4F7;
+}
+.paginacion button.activa {
+  background: #1B3A6B;
+  color: white;
+  border-color: #1B3A6B;
+}
+.paginacion button:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+.info {
+  margin-left: 10px;
+  font-size: 13px;
+  color: #888;
 }
 </style>
