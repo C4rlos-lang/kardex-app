@@ -23,8 +23,45 @@
     <button class="cerrar" @click="panelAbierto = false">✕</button>
   </div>
   <div class="panel-body">
-    <p>Aquí irá el formulario de transferencia</p>
+  <div class="campo">
+    <label>Origen</label>
+    <input type="text" value="Bodega Principal" disabled />
   </div>
+
+  <div class="campo">
+    <label>Destino (Almacén)</label>
+    <select v-model="transferencia.almacen_id">
+      <option value="">Selecciona un almacén...</option>
+      <option v-for="a in almacenes" :key="a.id" :value="a.id">
+        {{ a.nombre }} - {{ a.ciudad }}
+      </option>
+    </select>
+  </div>
+
+  <div class="campo">
+    <label>Producto</label>
+    <select v-model="transferencia.producto_id">
+      <option value="">Selecciona un producto...</option>
+      <option v-for="p in productos" :key="p.id" :value="p.id">
+        {{ p.nombre }} (Stock: {{ p.stock }})
+      </option>
+    </select>
+  </div>
+
+  <div class="campo">
+    <label>Cantidad</label>
+    <input v-model="transferencia.cantidad" type="number" min="1" placeholder="Ej: 10" />
+  </div>
+
+  <button class="btn-confirmar" @click="confirmarTransferencia" :disabled="cargandoTransferencia">
+    {{ cargandoTransferencia ? 'Transfiriendo...' : '✅ Confirmar Transferencia' }}
+  </button>
+
+  <p v-if="mensajeTransferencia" :class="exitoTransferencia ? 'exito' : 'error'">
+    {{ mensajeTransferencia }}
+  </p>
+</div>
+
 </div>
 
     <p v-if="cargando">Cargando productos...</p>
