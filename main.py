@@ -162,3 +162,35 @@ def crear_transferencia(t: TransferenciaSchema, db: Session = Depends(get_db)):
     db.commit()
     db.refresh(nueva)
     return nueva
+
+
+@app.get("/almacenes/{almacen_id}/inventario")
+def inventario_almacen(almacen_id: int, db: Session = Depends(get_db)):
+    transferencias = db.query(Transferencia).filter(
+        Transferencia.almacen_id == almacen_id
+    ).all()
+    
+    # Agrupar por producto
+    inventario = {}
+    for t in transferencias:
+        if t.producto_id not in inventario:
+            inventario[t.producto_id] = 0
+        inventario[t.producto_id] += t.cantidad
+    
+    # Obtener datos del producto
+    resultado = []
+    for producto_id, cantidad in inventario.items():
+        producto = db.query(Producto).filter(Producto.id == producto_id).first()
+        if producto:
+            resultado.append({
+                "id": producto.id,
+                "sku": producto.sku,
+                "nombre": producto.nombre,
+                "categoria": producto.categoria,
+                "proveedor": producto.proveedor,
+                "marca": producto.marca,
+                "precio": producto.precio,
+                "foto_url": producto.foto_url,
+                "stock": cantidad
+            })
+    return resultado
