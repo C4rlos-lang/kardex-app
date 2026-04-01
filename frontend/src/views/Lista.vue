@@ -135,8 +135,18 @@ export default {
       cargando: true,
       paginaActual: 1,
       porPagina: 10,
-      panelAbierto: false
-    }
+      panelAbierto: false,
+      almacenes: [],
+      transferencia: {
+        almacen_id: '',
+        producto_id: '',
+        cantidad: 0
+      },
+      mensajeTransferencia: '',
+      exitoTransferencia: false,
+      cargandoTransferencia: false
+    }   // ← este cierra el return
+  },
   },
   computed: {
     productosFiltrados() {
@@ -304,4 +314,38 @@ tbody tr:hover { background: #D6E4F7; }
   font-size: 13px;
   color: #888;
 }
+.campo {
+  margin-bottom: 16px;
+}
+.campo label {
+  display: block;
+  font-size: 13px;
+  color: #555;
+  margin-bottom: 6px;
+}
+.campo input, .campo select {
+  width: 100%;
+  padding: 8px 12px;
+  border: 1px solid #ccc;
+  border-radius: 6px;
+  font-size: 14px;
+}
+.campo input:disabled {
+  background: #f5f5f5;
+  color: #888;
+}
+.btn-confirmar {
+  width: 100%;
+  padding: 12px;
+  background: #1E7E50;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 15px;
+  margin-top: 8px;
+}
+.btn-confirmar:disabled { background: #ccc; }
+.exito { color: #1E7E50; margin-top: 12px; }
+.error { color: red; margin-top: 12px; }
 </style>
