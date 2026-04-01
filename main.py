@@ -7,6 +7,7 @@ from pydantic import BaseModel
 from typing import Optional
 from datetime import datetime
 from sqlalchemy import create_engine, Column, Integer, String, Float, DateTime
+from fastapi import FastAPI, Depends, HTTPException
 
 
 # ── 1. Configurar la base de datos ────────────────────────────────
@@ -122,3 +123,42 @@ def crear_almacen(almacen: AlmacenSchema, db: Session = Depends(get_db)):
     db.commit()
     db.refresh(nuevo)
     return nuevo
+
+# ── Transferencias ────────────────────────────────────────────────
+class Transferencia(Base):
+    __tablename__ = "transferencias"
+    id          = Column(Integer, primary_key=True)
+    producto_id = Column(Integer)
+    almacen_id  = Column(Integer)
+    cantidad    = Column(Float)
+    fecha       = Column(DateTime, default=datetime.utcnow)
+
+class TransferenciaSchema(BaseModel):
+    producto_id: int
+    almacen_id:  int
+    cantidad:    float
+
+@app.post("/transferencias")
+def crear_transferencia(t: TransferenciaSchema, db: Session = Depends(get_db)):
+    # Verificar producto
+    producto = db.query(Producto).filter(Producto.id == t.producto_id).first()
+    if not producto:
+        raise HTTPException(status_code=404, detail="Producto no encontrado")
+    
+    # Verificar stock suficiente
+    if producto.stock < t.cantidad:
+        raise HTTPException(status_code=400, detail="Stock insuficiente en bodega")
+    
+    # Restar de bodega
+    producto.stock -= t.cantidad
+
+    # Guardar transferencia
+    nueva = Transferencia(
+        producto_id=t.producto_id,
+        almacen_id=t.almacen_id,
+        cantidad=t.cantidad
+    )
+    db.add(nueva)
+    db.commit()
+    db.refresh(nueva)
+    return nueva
