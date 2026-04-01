@@ -1,5 +1,5 @@
 <template>
-  <div class="sidebar">
+  <div class="sidebar" :class="{ oculto: !visible }">
     <div class="logo">📦 Kardex</div>
     <nav>
       <router-link to="/productos">➕ Crear Producto</router-link>
@@ -10,6 +10,17 @@
   </div>
 </template>
 
+<script>
+export default {
+  props: {
+    visible: {
+      type: Boolean,
+      default: true
+    }
+  }
+}
+</script>
+
 <style scoped>
 .sidebar {
   width: 220px;
@@ -19,6 +30,11 @@
   position: fixed;
   left: 0;
   top: 0;
+  transition: transform 0.3s ease;
+  z-index: 150;
+}
+.sidebar.oculto {
+  transform: translateX(-220px);
 }
 .logo {
   color: white;
@@ -27,9 +43,7 @@
   padding: 0 20px 30px;
   border-bottom: 1px solid #2E5FA3;
 }
-nav {
-  margin-top: 20px;
-}
+nav { margin-top: 20px; }
 nav a {
   display: block;
   color: #D6E4F7;
