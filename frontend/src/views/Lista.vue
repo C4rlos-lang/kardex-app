@@ -80,7 +80,7 @@ export default {
       busqueda: '',
       cargando: true,
       paginaActual: 1,
-      porPagina: 20
+      porPagina: 10
     }
   },
   computed: {
