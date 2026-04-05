@@ -10,59 +10,9 @@
       />
     </div>
 
-    <!-- Botón transferir -->
-<button class="btn-transferir" @click="panelAbierto = true">
-  📦 Transferir
-</button>
-
-<!-- Panel lateral derecho -->
-<div class="overlay" v-if="panelAbierto" @click.self="panelAbierto = false"></div>
-<div class="panel" :class="{ abierto: panelAbierto }">
-  <div class="panel-header">
-    <h2>Nueva Transferencia</h2>
-    <button class="cerrar" @click="panelAbierto = false">✕</button>
-  </div>
-  <div class="panel-body">
-  <div class="campo">
-    <label>Origen</label>
-    <input type="text" value="Bodega Principal" disabled />
-  </div>
-
-  <div class="campo">
-    <label>Destino (Almacén)</label>
-    <select v-model="transferencia.almacen_id">
-      <option value="">Selecciona un almacén...</option>
-      <option v-for="a in almacenes" :key="a.id" :value="a.id">
-        {{ a.nombre }} - {{ a.ciudad }}
-      </option>
-    </select>
-  </div>
-
-  <div class="campo">
-    <label>Producto</label>
-    <select v-model="transferencia.producto_id">
-      <option value="">Selecciona un producto...</option>
-      <option v-for="p in productos" :key="p.id" :value="p.id">
-        {{ p.nombre }} (Stock: {{ p.stock }})
-      </option>
-    </select>
-  </div>
-
-  <div class="campo">
-    <label>Cantidad</label>
-    <input v-model="transferencia.cantidad" type="number" min="1" placeholder="Ej: 10" />
-  </div>
-
-  <button class="btn-confirmar" @click="confirmarTransferencia" :disabled="cargandoTransferencia">
-    {{ cargandoTransferencia ? 'Transfiriendo...' : '✅ Confirmar Transferencia' }}
-  </button>
-
-  <p v-if="mensajeTransferencia" :class="exitoTransferencia ? 'exito' : 'error'">
-    {{ mensajeTransferencia }}
-  </p>
-</div>
-
-</div>
+    <button class="btn-transferir" @click="panelAbierto = true">
+      📦 Transferir
+    </button>
 
     <p v-if="cargando">Cargando productos...</p>
 
@@ -77,6 +27,7 @@
           <th>Proveedor</th>
           <th>Precio</th>
           <th>Stock</th>
+          <th>Etiquetas</th>
         </tr>
       </thead>
       <tbody>
@@ -92,35 +43,107 @@
           <td>{{ producto.proveedor }}</td>
           <td>${{ producto.precio }}</td>
           <td>{{ producto.stock }}</td>
+          <td>
+            <button class="btn-etiqueta" @click="verEtiquetas(producto)">
+              🏷️ Etiquetas
+            </button>
+          </td>
         </tr>
         <tr v-if="productosPaginados.length === 0">
-          <td colspan="8" style="text-align:center; color:#888;">
+          <td colspan="9" style="text-align:center; color:#888;">
             No se encontraron productos
           </td>
         </tr>
       </tbody>
     </table>
 
-    <!-- Paginación -->
     <div class="paginacion" v-if="totalPaginas > 1">
       <button @click="paginaAnterior" :disabled="paginaActual === 1">← Anterior</button>
-      
       <span v-for="pagina in totalPaginas" :key="pagina">
-        <button 
-          @click="irAPagina(pagina)" 
-          :class="pagina === paginaActual ? 'activa' : ''"
-        >
+        <button @click="irAPagina(pagina)" :class="pagina === paginaActual ? 'activa' : ''">
           {{ pagina }}
         </button>
       </span>
-
       <button @click="paginaSiguiente" :disabled="paginaActual === totalPaginas">Siguiente →</button>
-      
       <span class="info">
         Página {{ paginaActual }} de {{ totalPaginas }} 
         ({{ productosFiltrados.length }} productos)
       </span>
     </div>
+
+    <!-- Overlay transferencia -->
+    <div class="overlay" v-if="panelAbierto" @click.self="panelAbierto = false"></div>
+
+    <!-- Panel transferencia -->
+    <div class="panel" :class="{ abierto: panelAbierto }">
+      <div class="panel-header">
+        <h2>Nueva Transferencia</h2>
+        <button class="cerrar" @click="panelAbierto = false">✕</button>
+      </div>
+      <div class="panel-body">
+        <div class="campo">
+          <label>Origen</label>
+          <input type="text" value="Bodega Principal" disabled />
+        </div>
+        <div class="campo">
+          <label>Destino (Almacén)</label>
+          <select v-model="transferencia.almacen_id">
+            <option value="">Selecciona un almacén...</option>
+            <option v-for="a in almacenes" :key="a.id" :value="a.id">
+              {{ a.nombre }} - {{ a.ciudad }}
+            </option>
+          </select>
+        </div>
+        <div class="campo">
+          <label>Producto</label>
+          <select v-model="transferencia.producto_id">
+            <option value="">Selecciona un producto...</option>
+            <option v-for="p in productos" :key="p.id" :value="p.id">
+              {{ p.nombre }} (Stock: {{ p.stock }})
+            </option>
+          </select>
+        </div>
+        <div class="campo">
+          <label>Cantidad</label>
+          <input v-model="transferencia.cantidad" type="number" min="1" placeholder="Ej: 10" />
+        </div>
+        <button class="btn-confirmar" @click="confirmarTransferencia" :disabled="cargandoTransferencia">
+          {{ cargandoTransferencia ? 'Transfiriendo...' : '✅ Confirmar Transferencia' }}
+        </button>
+        <p v-if="mensajeTransferencia" :class="exitoTransferencia ? 'exito' : 'error'">
+          {{ mensajeTransferencia }}
+        </p>
+      </div>
+    </div>
+
+    <!-- Overlay etiquetas -->
+    <div class="overlay" v-if="panelEtiquetasAbierto" @click.self="panelEtiquetasAbierto = false"></div>
+
+    <!-- Panel etiquetas -->
+    <div class="panel" :class="{ abierto: panelEtiquetasAbierto }">
+      <div class="panel-header">
+        <h2>🏷️ Etiquetas — {{ productoEtiquetas?.nombre }}</h2>
+        <button class="cerrar" @click="panelEtiquetasAbierto = false">✕</button>
+      </div>
+      <div class="panel-body">
+        <p v-if="cargandoEtiquetas">Cargando etiquetas...</p>
+        <p v-else-if="tallas.length === 0">Sin tallas registradas.</p>
+        <div v-else>
+          <button class="btn-imprimir" @click="imprimir">🖨️ Imprimir todas</button>
+          <div class="etiquetas-wrap" id="etiquetas-print">
+            <div class="etiqueta" v-for="(t, i) in tallas" :key="i">
+              <p class="et-nombre">{{ productoEtiquetas?.nombre }}</p>
+              <p class="et-sku">{{ productoEtiquetas?.sku }}</p>
+              <span class="et-talla">{{ t.talla }}</span>
+              <p class="et-genero">{{ t.genero }}</p>
+              <canvas :id="'qr-' + i" class="qr-canvas"></canvas>
+              <p class="et-codigo">{{ productoEtiquetas?.sku }}-T{{ t.talla }}-{{ t.genero?.toUpperCase() }}</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
   </div>
 </template>
 
@@ -140,7 +163,11 @@ export default {
       transferencia: { almacen_id: '', producto_id: '', cantidad: 0 },
       mensajeTransferencia: '',
       exitoTransferencia: false,
-      cargandoTransferencia: false
+      cargandoTransferencia: false,
+      panelEtiquetasAbierto: false,
+      productoEtiquetas: null,
+      tallas: [],
+      cargandoEtiquetas: false
     }
   },
   computed: {
@@ -193,6 +220,50 @@ export default {
         this.exitoTransferencia = false
       }
       this.cargandoTransferencia = false
+    },
+    async verEtiquetas(producto) {
+      this.productoEtiquetas = producto
+      this.panelEtiquetasAbierto = true
+      this.cargandoEtiquetas = true
+      try {
+        const { data } = await axios.get(`https://kardex-app.onrender.com/productos/${producto.id}/tallas`)
+        this.tallas = data
+        this.$nextTick(() => { this.generarQRs() })
+      } catch (error) {
+        console.error('Error cargando tallas', error)
+      }
+      this.cargandoEtiquetas = false
+    },
+    generarQRs() {
+      import('qrcode').then(QRCode => {
+        this.tallas.forEach((t, i) => {
+          const canvas = document.getElementById(`qr-${i}`)
+          if (canvas) {
+            const texto = `SKU: ${this.productoEtiquetas.sku}\nNombre: ${this.productoEtiquetas.nombre}\nTalla: ${t.talla}\nGenero: ${t.genero}`
+            QRCode.toCanvas(canvas, texto, { width: 80 })
+          }
+        })
+      })
+    },
+    imprimir() {
+      const contenido = document.getElementById('etiquetas-print').innerHTML
+      const ventana = window.open('', '_blank')
+      ventana.document.write(`
+        <html><head><title>Etiquetas</title>
+        <style>
+          body { font-family: Arial; }
+          .etiquetas-wrap { display: flex; flex-wrap: wrap; gap: 16px; padding: 16px; }
+          .etiqueta { border: 1px solid #ccc; border-radius: 8px; padding: 12px; width: 150px; text-align: center; }
+          .et-nombre { font-size: 12px; font-weight: bold; margin-bottom: 4px; }
+          .et-sku { font-size: 10px; color: #666; margin-bottom: 4px; }
+          .et-talla { font-size: 18px; font-weight: bold; color: #185FA5; background: #E6F1FB; padding: 2px 12px; border-radius: 20px; display: inline-block; margin-bottom: 4px; }
+          .et-genero { font-size: 10px; color: #666; margin-bottom: 4px; }
+          .et-codigo { font-size: 9px; color: #999; margin-top: 4px; }
+        </style></head>
+        <body>${contenido}</body></html>
+      `)
+      ventana.document.close()
+      ventana.print()
     }
   },
   async mounted() {
@@ -211,154 +282,108 @@ export default {
 
 <style scoped>
 h1 { margin-bottom: 16px; color: #1B3A6B; }
-.buscador { margin-bottom: 20px; }
+.buscador { margin-bottom: 16px; }
 .buscador input {
-  width: 100%;
-  max-width: 500px;
-  padding: 10px 14px;
-  font-size: 15px;
-  border: 1px solid #ccc;
-  border-radius: 8px;
+  width: 100%; max-width: 500px;
+  padding: 10px 14px; font-size: 15px;
+  border: 1px solid #ccc; border-radius: 8px;
 }
 .btn-transferir {
-  margin-bottom: 16px;
-  padding: 10px 20px;
-  background: #2E5FA3;
-  color: white;
-  border: none;
-  border-radius: 8px;
-  cursor: pointer;
-  font-size: 15px;
+  margin-bottom: 16px; padding: 10px 20px;
+  background: #2E5FA3; color: white;
+  border: none; border-radius: 8px;
+  cursor: pointer; font-size: 15px;
 }
-.overlay {
-  position: fixed;
-  top: 0; left: 0;
-  width: 100%; height: 100%;
-  background: rgba(0,0,0,0.3);
-  z-index: 100;
-}
-.panel {
-  position: fixed;
-  top: 0; right: -450px;
-  width: 450px;
-  height: 100%;
-  background: white;
-  box-shadow: -4px 0 20px rgba(0,0,0,0.15);
-  z-index: 101;
-  transition: right 0.3s ease;
-  display: flex;
-  flex-direction: column;
-}
-.panel.abierto {
-  right: 0;
-}
-.panel-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 20px 24px;
-  border-bottom: 1px solid #eee;
-  background: #1B3A6B;
-  color: white;
-}
-.panel-header h2 {
-  margin: 0;
-  font-size: 18px;
-}
-.cerrar {
-  background: none;
-  border: none;
-  color: white;
-  font-size: 20px;
-  cursor: pointer;
-}
-.panel-body {
-  padding: 24px;
-  overflow-y: auto;
-  flex: 1;
+.btn-etiqueta {
+  padding: 5px 10px; background: #1E7E50;
+  color: white; border: none;
+  border-radius: 6px; cursor: pointer; font-size: 12px;
 }
 table {
-  width: 100%;
-  border-collapse: collapse;
-  background: white;
-  border-radius: 8px;
-  overflow: hidden;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+  width: 100%; border-collapse: collapse;
+  background: white; border-radius: 8px;
+  overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.1);
 }
 thead { background: #1B3A6B; color: white; }
 th, td { padding: 12px 16px; text-align: left; font-size: 14px; }
 tbody tr:nth-child(even) { background: #F2F4F7; }
 tbody tr:hover { background: #D6E4F7; }
-.foto {
-  width: 50px;
-  height: 50px;
-  object-fit: cover;
-  border-radius: 4px;
-}
+.foto { width: 50px; height: 50px; object-fit: cover; border-radius: 4px; }
 .paginacion {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  margin-top: 20px;
-  flex-wrap: wrap;
+  display: flex; align-items: center;
+  gap: 6px; margin-top: 20px; flex-wrap: wrap;
 }
 .paginacion button {
-  padding: 6px 12px;
-  border: 1px solid #ccc;
+  padding: 6px 12px; border: 1px solid #ccc;
+  background: white; border-radius: 4px;
+  cursor: pointer; font-size: 14px;
+}
+.paginacion button:hover { background: #D6E4F7; }
+.paginacion button.activa { background: #1B3A6B; color: white; border-color: #1B3A6B; }
+.paginacion button:disabled { opacity: 0.4; cursor: not-allowed; }
+.info { margin-left: 10px; font-size: 13px; color: #888; }
+.overlay {
+  position: fixed; top: 0; left: 0;
+  width: 100%; height: 100%;
+  background: rgba(0,0,0,0.3); z-index: 100;
+}
+.panel {
+  position: fixed; top: 0; right: -450px;
+  width: 450px; height: 100%;
   background: white;
-  border-radius: 4px;
-  cursor: pointer;
-  font-size: 14px;
+  box-shadow: -4px 0 20px rgba(0,0,0,0.15);
+  z-index: 101; transition: right 0.3s ease;
+  display: flex; flex-direction: column;
 }
-.paginacion button:hover {
-  background: #D6E4F7;
+.panel.abierto { right: 0; }
+.panel-header {
+  display: flex; justify-content: space-between;
+  align-items: center; padding: 20px 24px;
+  background: #1B3A6B; color: white;
 }
-.paginacion button.activa {
-  background: #1B3A6B;
-  color: white;
-  border-color: #1B3A6B;
+.panel-header h2 { margin: 0; font-size: 18px; }
+.cerrar {
+  background: none; border: none;
+  color: white; font-size: 20px; cursor: pointer;
 }
-.paginacion button:disabled {
-  opacity: 0.4;
-  cursor: not-allowed;
-}
-.info {
-  margin-left: 10px;
-  font-size: 13px;
-  color: #888;
-}
-.campo {
-  margin-bottom: 16px;
-}
-.campo label {
-  display: block;
-  font-size: 13px;
-  color: #555;
-  margin-bottom: 6px;
-}
+.panel-body { padding: 24px; overflow-y: auto; flex: 1; }
+.campo { margin-bottom: 16px; }
+.campo label { display: block; font-size: 13px; color: #555; margin-bottom: 6px; }
 .campo input, .campo select {
-  width: 100%;
-  padding: 8px 12px;
-  border: 1px solid #ccc;
-  border-radius: 6px;
-  font-size: 14px;
+  width: 100%; padding: 8px 12px;
+  border: 1px solid #ccc; border-radius: 6px; font-size: 14px;
 }
-.campo input:disabled {
-  background: #f5f5f5;
-  color: #888;
-}
+.campo input:disabled { background: #f5f5f5; color: #888; }
 .btn-confirmar {
-  width: 100%;
-  padding: 12px;
-  background: #1E7E50;
-  color: white;
-  border: none;
-  border-radius: 8px;
-  cursor: pointer;
-  font-size: 15px;
-  margin-top: 8px;
+  width: 100%; padding: 12px;
+  background: #1E7E50; color: white;
+  border: none; border-radius: 8px;
+  cursor: pointer; font-size: 15px; margin-top: 8px;
 }
 .btn-confirmar:disabled { background: #ccc; }
+.btn-imprimir {
+  padding: 8px 16px; background: #1B3A6B;
+  color: white; border: none;
+  border-radius: 6px; cursor: pointer;
+  font-size: 14px; margin-bottom: 16px;
+}
+.etiquetas-wrap { display: flex; flex-wrap: wrap; gap: 16px; }
+.etiqueta {
+  border: 1px solid #ccc; border-radius: 8px;
+  padding: 12px; width: 150px; text-align: center;
+  display: flex; flex-direction: column;
+  align-items: center; gap: 6px;
+}
+.et-nombre { font-size: 12px; font-weight: 500; color: #333; }
+.et-sku { font-size: 10px; color: #888; }
+.et-talla {
+  font-size: 18px; font-weight: 500;
+  color: #185FA5; background: #E6F1FB;
+  padding: 2px 12px; border-radius: 20px;
+}
+.et-genero { font-size: 10px; color: #666; }
+.qr-canvas { width: 80px !important; height: 80px !important; }
+.et-codigo { font-size: 9px; color: #999; }
 .exito { color: #1E7E50; margin-top: 12px; }
 .error { color: red; margin-top: 12px; }
 </style>
