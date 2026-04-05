@@ -249,7 +249,7 @@ export default {
       const QRCode = await import('qrcode')
       
       const etiquetas = await Promise.all(this.tallas.map(async (t) => {
-        const texto = `SKU: ${this.productoEtiquetas.sku}\nNombre: ${this.productoEtiquetas.nombre}\nTalla: ${t.talla}\nGenero: ${t.genero}`
+        const texto = `${this.productoEtiquetas.sku} | ${this.productoEtiquetas.nombre} | Talla: ${t.talla} | ${t.genero}`
         const qrBase64 = await QRCode.toDataURL(texto, { width: 100, margin: 1 })
         return `
           <div class="etiqueta">
