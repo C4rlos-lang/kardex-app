@@ -245,10 +245,12 @@ export default {
         })
       })
     },
-    imprimir() {
-      const etiquetas = this.tallas.map((t, i) => {
-        const canvas = document.getElementById(`qr-${i}`)
-        const qrBase64 = canvas ? canvas.toDataURL('image/png') : ''
+      async imprimir() {
+      const QRCode = await import('qrcode')
+      
+      const etiquetas = await Promise.all(this.tallas.map(async (t) => {
+        const texto = `SKU: ${this.productoEtiquetas.sku}\nNombre: ${this.productoEtiquetas.nombre}\nTalla: ${t.talla}\nGenero: ${t.genero}`
+        const qrBase64 = await QRCode.toDataURL(texto, { width: 80 })
         return `
           <div class="etiqueta">
             <p class="et-nombre">${this.productoEtiquetas.nombre}</p>
@@ -259,7 +261,7 @@ export default {
             <p class="et-codigo">${this.productoEtiquetas.sku}-T${t.talla}-${t.genero?.toUpperCase()}</p>
           </div>
         `
-      }).join('')
+      }))
 
       const ventana = window.open('', '_blank')
       ventana.document.write(`
@@ -275,7 +277,7 @@ export default {
           .et-codigo { font-size: 9px; color: #999; }
         </style></head>
         <body>
-          <div class="etiquetas-wrap">${etiquetas}</div>
+          <div class="etiquetas-wrap">${etiquetas.join('')}</div>
         </body></html>
       `)
       ventana.document.close()
