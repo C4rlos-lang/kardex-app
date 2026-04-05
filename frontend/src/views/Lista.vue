@@ -245,43 +245,48 @@ export default {
         })
       })
     },
-      async imprimir() {
+    async imprimir() {
       const QRCode = await import('qrcode')
       
       const etiquetas = await Promise.all(this.tallas.map(async (t) => {
         const texto = `SKU: ${this.productoEtiquetas.sku}\nNombre: ${this.productoEtiquetas.nombre}\nTalla: ${t.talla}\nGenero: ${t.genero}`
-        const qrBase64 = await QRCode.toDataURL(texto, { width: 80 })
+        const qrBase64 = await QRCode.toDataURL(texto, { width: 100, margin: 1 })
         return `
           <div class="etiqueta">
             <p class="et-nombre">${this.productoEtiquetas.nombre}</p>
             <p class="et-sku">${this.productoEtiquetas.sku}</p>
             <span class="et-talla">${t.talla}</span>
             <p class="et-genero">${t.genero}</p>
-            <img src="${qrBase64}" style="width:80px;height:80px;" />
+            <img src="${qrBase64}" width="80" height="80" />
             <p class="et-codigo">${this.productoEtiquetas.sku}-T${t.talla}-${t.genero?.toUpperCase()}</p>
           </div>
         `
       }))
 
-      const ventana = window.open('', '_blank')
-      ventana.document.write(`
+      const html = `
         <html><head><title>Etiquetas</title>
         <style>
-          body { font-family: Arial; }
-          .etiquetas-wrap { display: flex; flex-wrap: wrap; gap: 16px; padding: 16px; }
-          .etiqueta { border: 1px solid #ccc; border-radius: 8px; padding: 12px; width: 150px; text-align: center; display: flex; flex-direction: column; align-items: center; gap: 6px; }
-          .et-nombre { font-size: 12px; font-weight: bold; }
-          .et-sku { font-size: 10px; color: #666; }
+          body { font-family: Arial; margin: 0; padding: 16px; }
+          .etiquetas-wrap { display: flex; flex-wrap: wrap; gap: 16px; }
+          .etiqueta { border: 1px solid #ccc; border-radius: 8px; padding: 12px; width: 150px; text-align: center; display: flex; flex-direction: column; align-items: center; gap: 6px; page-break-inside: avoid; }
+          .et-nombre { font-size: 12px; font-weight: bold; margin: 0; }
+          .et-sku { font-size: 10px; color: #666; margin: 0; }
           .et-talla { font-size: 18px; font-weight: bold; color: #185FA5; background: #E6F1FB; padding: 2px 12px; border-radius: 20px; display: inline-block; }
-          .et-genero { font-size: 10px; color: #666; }
-          .et-codigo { font-size: 9px; color: #999; }
+          .et-genero { font-size: 10px; color: #666; margin: 0; }
+          .et-codigo { font-size: 9px; color: #999; margin: 0; }
+          @media print { body { margin: 0; } }
         </style></head>
-        <body>
+        <body onload="window.print()">
           <div class="etiquetas-wrap">${etiquetas.join('')}</div>
         </body></html>
-      `)
-      ventana.document.close()
-      ventana.print()
+      `
+
+      const blob = new Blob([html], { type: 'text/html' })
+      const url = URL.createObjectURL(blob)
+      const ventana = window.open(url, '_blank')
+      if (!ventana) {
+        alert('Por favor permite las ventanas emergentes para imprimir')
+      }
     }
   },
   async mounted() {
