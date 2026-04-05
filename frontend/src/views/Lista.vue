@@ -246,21 +246,37 @@ export default {
       })
     },
     imprimir() {
-      const contenido = document.getElementById('etiquetas-print').innerHTML
+      const etiquetas = this.tallas.map((t, i) => {
+        const canvas = document.getElementById(`qr-${i}`)
+        const qrBase64 = canvas ? canvas.toDataURL('image/png') : ''
+        return `
+          <div class="etiqueta">
+            <p class="et-nombre">${this.productoEtiquetas.nombre}</p>
+            <p class="et-sku">${this.productoEtiquetas.sku}</p>
+            <span class="et-talla">${t.talla}</span>
+            <p class="et-genero">${t.genero}</p>
+            <img src="${qrBase64}" style="width:80px;height:80px;" />
+            <p class="et-codigo">${this.productoEtiquetas.sku}-T${t.talla}-${t.genero?.toUpperCase()}</p>
+          </div>
+        `
+      }).join('')
+
       const ventana = window.open('', '_blank')
       ventana.document.write(`
         <html><head><title>Etiquetas</title>
         <style>
           body { font-family: Arial; }
           .etiquetas-wrap { display: flex; flex-wrap: wrap; gap: 16px; padding: 16px; }
-          .etiqueta { border: 1px solid #ccc; border-radius: 8px; padding: 12px; width: 150px; text-align: center; }
-          .et-nombre { font-size: 12px; font-weight: bold; margin-bottom: 4px; }
-          .et-sku { font-size: 10px; color: #666; margin-bottom: 4px; }
-          .et-talla { font-size: 18px; font-weight: bold; color: #185FA5; background: #E6F1FB; padding: 2px 12px; border-radius: 20px; display: inline-block; margin-bottom: 4px; }
-          .et-genero { font-size: 10px; color: #666; margin-bottom: 4px; }
-          .et-codigo { font-size: 9px; color: #999; margin-top: 4px; }
+          .etiqueta { border: 1px solid #ccc; border-radius: 8px; padding: 12px; width: 150px; text-align: center; display: flex; flex-direction: column; align-items: center; gap: 6px; }
+          .et-nombre { font-size: 12px; font-weight: bold; }
+          .et-sku { font-size: 10px; color: #666; }
+          .et-talla { font-size: 18px; font-weight: bold; color: #185FA5; background: #E6F1FB; padding: 2px 12px; border-radius: 20px; display: inline-block; }
+          .et-genero { font-size: 10px; color: #666; }
+          .et-codigo { font-size: 9px; color: #999; }
         </style></head>
-        <body>${contenido}</body></html>
+        <body>
+          <div class="etiquetas-wrap">${etiquetas}</div>
+        </body></html>
       `)
       ventana.document.close()
       ventana.print()
