@@ -7,7 +7,7 @@ from pydantic import BaseModel
 from typing import Optional
 from datetime import datetime
 
-# ── 1. Configurar la base de datos ────────────────────────────────
+# ── 1. Base de datos ──────────────────────────────────────────────
 engine = create_engine("postgresql://postgres.thcdadlejpdhaaekyost:Kardex2026App@aws-1-us-east-1.pooler.supabase.com:6543/postgres?sslmode=require")
 SessionLocal = sessionmaker(bind=engine)
 Base = declarative_base()
@@ -110,7 +110,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# ── Endpoints Productos ───────────────────────────────────────────
+# ── Productos ─────────────────────────────────────────────────────
 @app.get("/productos")
 def listar(db: Session = Depends(get_db)):
     return db.query(Producto).all()
@@ -129,7 +129,7 @@ def crear(producto: ProductoSchema, db: Session = Depends(get_db)):
     db.refresh(nuevo)
     return nuevo
 
-# ── Endpoints Almacenes ───────────────────────────────────────────
+# ── Almacenes ─────────────────────────────────────────────────────
 @app.get("/almacenes")
 def listar_almacenes(db: Session = Depends(get_db)):
     return db.query(Almacen).all()
@@ -146,7 +146,7 @@ def crear_almacen(almacen: AlmacenSchema, db: Session = Depends(get_db)):
     db.refresh(nuevo)
     return nuevo
 
-# ── Endpoints Transferencias ──────────────────────────────────────
+# ── Transferencias ────────────────────────────────────────────────
 @app.post("/transferencias")
 def crear_transferencia(t: TransferenciaSchema, db: Session = Depends(get_db)):
     producto = db.query(Producto).filter(Producto.id == t.producto_id).first()
@@ -154,7 +154,7 @@ def crear_transferencia(t: TransferenciaSchema, db: Session = Depends(get_db)):
         raise HTTPException(status_code=404, detail="Producto no encontrado")
     if producto.stock < t.cantidad:
         raise HTTPException(status_code=400, detail="Stock insuficiente en bodega")
-    
+
     producto.stock -= t.cantidad
 
     inventario = db.query(InventarioAlmacen).filter(
@@ -205,23 +205,7 @@ def inventario_almacen(almacen_id: int, db: Session = Depends(get_db)):
             })
     return resultado
 
-# endpoint talla 
-
 # ── Tallas ────────────────────────────────────────────────────────
-class ProductoTalla(Base):
-    __tablename__ = "producto_tallas"
-    id          = Column(Integer, primary_key=True)
-    producto_id = Column(Integer)
-    genero      = Column(String)
-    talla       = Column(String)
-    unidades    = Column(Integer, default=0)
-
-class ProductoTallaSchema(BaseModel):
-    producto_id: int
-    genero:      str
-    talla:       str
-    unidades:    int
-
 @app.post("/producto-tallas")
 def crear_tallas(tallas: list[ProductoTallaSchema], db: Session = Depends(get_db)):
     for t in tallas:
