@@ -24,6 +24,7 @@ class Producto(Base):
     stock          = Column(Float)
     foto_url       = Column(String, nullable=True)
     marca          = Column(String, nullable=True)
+    genero         = Column(String, nullable=True)
     fecha_registro = Column(DateTime, default=datetime.utcnow)
 
 class Almacen(Base):
