@@ -205,7 +205,16 @@ def inventario_almacen(almacen_id: int, db: Session = Depends(get_db)):
             })
     return resultado
 
+# un end point para obtener las tallas ----
+@app.get("/productos/{producto_id}/tallas")
+def obtener_tallas(producto_id: int, db: Session = Depends(get_db)):
+    tallas = db.query(ProductoTalla).filter(
+        ProductoTalla.producto_id == producto_id
+    ).all()
+    return tallas
+
 # ── Tallas ────────────────────────────────────────────────────────
+
 @app.post("/producto-tallas")
 def crear_tallas(tallas: list[ProductoTallaSchema], db: Session = Depends(get_db)):
     for t in tallas:
@@ -218,3 +227,4 @@ def crear_tallas(tallas: list[ProductoTallaSchema], db: Session = Depends(get_db
         db.add(nueva)
     db.commit()
     return {"mensaje": "Tallas guardadas"}
+
