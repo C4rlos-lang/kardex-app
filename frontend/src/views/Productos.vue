@@ -173,7 +173,7 @@ export default {
           categoria: this.form.categoria,
           marca: this.form.marca,
           precio: this.form.precio,
-          stock: this.form.stock,
+          stock: Object.values(this.unidadesPorTalla).reduce((a, b) => a + (b || 0), 0),
           proveedor: this.form.proveedor,
           foto_url: this.form.foto_url,
           genero: this.form.genero
