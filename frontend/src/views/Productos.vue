@@ -34,10 +34,6 @@
           <label>Proveedor</label>
           <input v-model="form.proveedor" type="text" placeholder="Ej: Proveedor SA" />
         </div>
-        <div class="grupo">
-          <label>Stock inicial</label>
-          <input v-model="form.stock" type="number" placeholder="Ej: 0" />
-        </div>
       </div>
 
       <div class="grupo">

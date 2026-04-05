@@ -44,6 +44,14 @@ class InventarioAlmacen(Base):
     producto_id = Column(Integer)
     stock       = Column(Float, default=0)
 
+class ProductoTalla(Base):
+    __tablename__ = "producto_tallas"
+    id          = Column(Integer, primary_key=True)
+    producto_id = Column(Integer)
+    genero      = Column(String)
+    talla       = Column(String)
+    unidades    = Column(Integer, default=0)
+
 class Transferencia(Base):
     __tablename__ = "transferencias"
     id          = Column(Integer, primary_key=True)
@@ -64,6 +72,7 @@ class ProductoSchema(BaseModel):
     stock:     float
     foto_url:  Optional[str] = None
     marca:     Optional[str] = None
+    genero:    Optional[str] = None
 
 class AlmacenSchema(BaseModel):
     nombre:      str
@@ -76,6 +85,12 @@ class TransferenciaSchema(BaseModel):
     producto_id: int
     almacen_id:  int
     cantidad:    float
+
+class ProductoTallaSchema(BaseModel):
+    producto_id: int
+    genero:      str
+    talla:       str
+    unidades:    int
 
 # ── 4. Sesión ─────────────────────────────────────────────────────
 def get_db():
@@ -106,7 +121,8 @@ def crear(producto: ProductoSchema, db: Session = Depends(get_db)):
         sku=producto.sku, nombre=producto.nombre,
         categoria=producto.categoria, proveedor=producto.proveedor,
         precio=producto.precio, stock=producto.stock,
-        marca=producto.marca, foto_url=producto.foto_url
+        marca=producto.marca, foto_url=producto.foto_url,
+        genero=producto.genero
     )
     db.add(nuevo)
     db.commit()
@@ -188,3 +204,33 @@ def inventario_almacen(almacen_id: int, db: Session = Depends(get_db)):
                 "stock": inv.stock
             })
     return resultado
+
+# endpoint talla 
+
+# ── Tallas ────────────────────────────────────────────────────────
+class ProductoTalla(Base):
+    __tablename__ = "producto_tallas"
+    id          = Column(Integer, primary_key=True)
+    producto_id = Column(Integer)
+    genero      = Column(String)
+    talla       = Column(String)
+    unidades    = Column(Integer, default=0)
+
+class ProductoTallaSchema(BaseModel):
+    producto_id: int
+    genero:      str
+    talla:       str
+    unidades:    int
+
+@app.post("/producto-tallas")
+def crear_tallas(tallas: list[ProductoTallaSchema], db: Session = Depends(get_db)):
+    for t in tallas:
+        nueva = ProductoTalla(
+            producto_id=t.producto_id,
+            genero=t.genero,
+            talla=t.talla,
+            unidades=t.unidades
+        )
+        db.add(nueva)
+    db.commit()
+    return {"mensaje": "Tallas guardadas"}
