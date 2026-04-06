@@ -92,6 +92,17 @@ class ProductoTallaSchema(BaseModel):
     talla:       str
     unidades:    int
 
+class InventarioAlmacenTalla(Base):
+    __tablename__ = "inventario_almacen_tallas"
+    id          = Column(Integer, primary_key=True)
+    almacen_id  = Column(Integer)
+    producto_id = Column(Integer)
+    talla       = Column(String)
+    genero      = Column(String)
+    unidades    = Column(Integer, default=0)
+
+
+
 # ── 4. Sesión ─────────────────────────────────────────────────────
 def get_db():
     db = SessionLocal()
@@ -147,21 +158,32 @@ def crear_almacen(almacen: AlmacenSchema, db: Session = Depends(get_db)):
     return nuevo
 
 # ── Transferencias ────────────────────────────────────────────────
+
+
 @app.post("/transferencias")
 def crear_transferencia(t: TransferenciaSchema, db: Session = Depends(get_db)):
+    # Verificar producto
     producto = db.query(Producto).filter(Producto.id == t.producto_id).first()
     if not producto:
         raise HTTPException(status_code=404, detail="Producto no encontrado")
-    if producto.stock < t.cantidad:
-        raise HTTPException(status_code=400, detail="Stock insuficiente en bodega")
 
+    # Verificar stock en talla específica
+    talla_prod = db.query(ProductoTalla).filter(
+        ProductoTalla.producto_id == t.producto_id,
+        ProductoTalla.talla == t.talla
+    ).first()
+    if not talla_prod or talla_prod.unidades < t.cantidad:
+        raise HTTPException(status_code=400, detail=f"Stock insuficiente en talla {t.talla}")
+
+    # Restar de producto_tallas (bodega)
+    talla_prod.unidades -= int(t.cantidad)
     producto.stock -= t.cantidad
 
+    # Actualizar inventario_almacen (total)
     inventario = db.query(InventarioAlmacen).filter(
         InventarioAlmacen.almacen_id == t.almacen_id,
         InventarioAlmacen.producto_id == t.producto_id
     ).first()
-
     if inventario:
         inventario.stock += t.cantidad
     else:
@@ -172,6 +194,25 @@ def crear_transferencia(t: TransferenciaSchema, db: Session = Depends(get_db)):
         )
         db.add(inventario)
 
+    # Actualizar inventario_almacen_tallas
+    inv_talla = db.query(InventarioAlmacenTalla).filter(
+        InventarioAlmacenTalla.almacen_id == t.almacen_id,
+        InventarioAlmacenTalla.producto_id == t.producto_id,
+        InventarioAlmacenTalla.talla == t.talla
+    ).first()
+    if inv_talla:
+        inv_talla.unidades += int(t.cantidad)
+    else:
+        inv_talla = InventarioAlmacenTalla(
+            almacen_id=t.almacen_id,
+            producto_id=t.producto_id,
+            talla=t.talla,
+            genero=t.genero,
+            unidades=int(t.cantidad)
+        )
+        db.add(inv_talla)
+
+    # Guardar transferencia
     nueva = Transferencia(
         producto_id=t.producto_id,
         almacen_id=t.almacen_id,
@@ -185,8 +226,9 @@ def crear_transferencia(t: TransferenciaSchema, db: Session = Depends(get_db)):
 # ── Inventario por almacén ────────────────────────────────────────
 @app.get("/almacenes/{almacen_id}/inventario")
 def inventario_almacen(almacen_id: int, db: Session = Depends(get_db)):
-    inventarios = db.query(InventarioAlmacen).filter(
-        InventarioAlmacen.almacen_id == almacen_id
+    inventarios = db.query(InventarioAlmacenTalla).filter(
+        InventarioAlmacenTalla.almacen_id == almacen_id,
+        InventarioAlmacenTalla.unidades > 0
     ).all()
     resultado = []
     for inv in inventarios:
@@ -201,11 +243,14 @@ def inventario_almacen(almacen_id: int, db: Session = Depends(get_db)):
                 "marca": producto.marca,
                 "precio": producto.precio,
                 "foto_url": producto.foto_url,
-                "stock": inv.stock
+                "stock": inv.unidades,
+                "talla": inv.talla,
+                "genero": inv.genero
             })
     return resultado
-
 # un end point para obtener las tallas ----
+
+
 @app.get("/productos/{producto_id}/tallas")
 def obtener_tallas(producto_id: int, db: Session = Depends(get_db)):
     tallas = db.query(ProductoTalla).filter(
