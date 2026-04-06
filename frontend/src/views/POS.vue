@@ -232,34 +232,36 @@ export default {
     },
     eliminarItem(i) { this.carrito.splice(i, 1) },
     async confirmarVenta() {
-      this.cargandoVenta = true
-      try {
-        await axios.post(`${API}/ventas`, {
-          almacen_id: this.almacenSeleccionado.id,
-          metodo_pago: this.metodoPago,
-          total: this.totalCarrito,
-          detalle: this.carrito.map(item => ({
-            producto_id: item.producto_id,
-            talla: item.talla,
-            cantidad: item.cantidad,
-            precio_unitario: item.precio
-          }))
-        })
-        this.mensajeVenta = '¡Venta registrada exitosamente!'
-        this.exitoVenta = true
-        this.carrito = []
-        this.metodoPago = ''
-        this.productoActivo = null
-        // Recargar inventario
-        const { data } = await axios.get(`${API}/almacenes/${this.almacenSeleccionado.id}/inventario`)
-        this.productos = data
-      } catch (error) {
-        this.mensajeVenta = error.response?.data?.detail || 'Error al procesar la venta'
-        this.exitoVenta = false
-      }
-      this.cargandoVenta = false
-    }
-  },
+  this.cargandoVenta = true
+  try {
+    await axios.post(`${API}/ventas`, {
+      almacen_id: this.almacenSeleccionado.id,
+      metodo_pago: this.metodoPago,
+      total: this.totalCarrito,
+      detalle: this.carrito.map(item => ({
+        producto_id: item.producto_id,
+        talla: item.talla,
+        cantidad: item.cantidad,
+        precio_unitario: item.precio
+      }))
+    })
+    this.mensajeVenta = '¡Venta registrada exitosamente! 🎉'
+    this.exitoVenta = true
+    this.carrito = []
+    this.metodoPago = ''
+    this.productoActivo = null
+    this.tallas = []
+    // Recargar inventario del almacén
+    const { data } = await axios.get(`${API}/almacenes/${this.almacenSeleccionado.id}/inventario`)
+    this.productos = data
+    // Limpiar mensaje después de 3 segundos
+    setTimeout(() => { this.mensajeVenta = '' }, 3000)
+  } catch (error) {
+    this.mensajeVenta = error.response?.data?.detail || 'Error al procesar la venta'
+    this.exitoVenta = false
+  }
+  this.cargandoVenta = false
+},
   async mounted() {
     try {
       const { data } = await axios.get(`${API}/almacenes`)
