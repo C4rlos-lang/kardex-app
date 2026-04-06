@@ -13,6 +13,8 @@
           <th>Responsable</th>
           <th>Estado</th>
           <th>Acción</th>
+          <th>Talla</th>
+          <th>Género</th>
         </tr>
       </thead>
       <tbody>
@@ -21,6 +23,8 @@
           <td>{{ almacen.direccion }}</td>
           <td>{{ almacen.ciudad }}</td>
           <td>{{ almacen.responsable }}</td>
+          <td>{{ item.talla }}</td>
+          <td>{{ item.genero }}</td>
           <td>
             <span :class="almacen.estado === 'activo' ? 'activo' : 'inactivo'">
               {{ almacen.estado }}
