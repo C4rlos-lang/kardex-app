@@ -10,10 +10,6 @@
       />
     </div>
 
-    <button class="btn-transferir" @click="panelAbierto = true">
-      📦 Transferir
-    </button>
-
     <p v-if="cargando">Cargando productos...</p>
 
     <table v-else>
@@ -27,7 +23,7 @@
           <th>Proveedor</th>
           <th>Precio</th>
           <th>Stock</th>
-          <th>Etiquetas</th>
+          <th>Acciones</th>
         </tr>
       </thead>
       <tbody>
@@ -44,9 +40,17 @@
           <td>${{ producto.precio }}</td>
           <td>{{ producto.stock }}</td>
           <td>
-            <button class="btn-etiqueta" @click="verEtiquetas(producto)">
-              🏷️ Etiquetas
-            </button>
+            <div style="display:flex; gap:6px; flex-wrap:wrap;">
+              <button class="btn-etiqueta" @click="verEtiquetas(producto)">
+                🏷️ Etiquetas
+              </button>
+              <button class="btn-transferir-row" @click="abrirTransferencia(producto)">
+                📦 Transferir
+              </button>
+              <button class="btn-tallas-row" @click="verTallasProducto(producto)">
+                👁️ Tallas
+              </button>
+            </div>
           </td>
         </tr>
         <tr v-if="productosPaginados.length === 0">
@@ -103,7 +107,6 @@
             </option>
           </select>
         </div>
-
         <div class="campo" v-if="tallasTransferencia.length > 0">
           <label>Talla</label>
           <select v-model="transferencia.talla">
@@ -122,7 +125,6 @@
             placeholder="Ej: 5"
           />
         </div>
-
         <button class="btn-confirmar" @click="confirmarTransferencia" :disabled="cargandoTransferencia">
           {{ cargandoTransferencia ? 'Transfiriendo...' : '✅ Confirmar Transferencia' }}
         </button>
@@ -160,6 +162,37 @@
       </div>
     </div>
 
+    <!-- Overlay tallas -->
+    <div class="overlay" v-if="panelTallasAbierto" @click.self="panelTallasAbierto = false"></div>
+
+    <!-- Panel tallas disponibles -->
+    <div class="panel" :class="{ abierto: panelTallasAbierto }">
+      <div class="panel-header">
+        <h2>👁️ Tallas — {{ productoTallas?.nombre }}</h2>
+        <button class="cerrar" @click="panelTallasAbierto = false">✕</button>
+      </div>
+      <div class="panel-body">
+        <p v-if="cargandoTallasVista">Cargando...</p>
+        <p v-else-if="tallasVista.length === 0">Sin tallas con stock disponible.</p>
+        <table v-else>
+          <thead>
+            <tr>
+              <th>Talla</th>
+              <th>Género</th>
+              <th>Unidades</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-for="t in tallasVista" :key="t.id">
+              <td><span class="talla-badge">{{ t.talla }}</span></td>
+              <td>{{ t.genero }}</td>
+              <td>{{ t.unidades }}</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
   </div>
 </template>
 
@@ -184,7 +217,11 @@ export default {
       panelEtiquetasAbierto: false,
       productoEtiquetas: null,
       tallas: [],
-      cargandoEtiquetas: false
+      cargandoEtiquetas: false,
+      panelTallasAbierto: false,
+      productoTallas: null,
+      tallasVista: [],
+      cargandoTallasVista: false
     }
   },
   computed: {
@@ -214,6 +251,23 @@ export default {
     irAPagina(pagina) { this.paginaActual = pagina },
     paginaAnterior() { if (this.paginaActual > 1) this.paginaActual-- },
     paginaSiguiente() { if (this.paginaActual < this.totalPaginas) this.paginaActual++ },
+    abrirTransferencia(producto) {
+      this.transferencia.producto_id = producto.id
+      this.panelAbierto = true
+      this.cargarTallasTransferencia()
+    },
+    async verTallasProducto(producto) {
+      this.productoTallas = producto
+      this.panelTallasAbierto = true
+      this.cargandoTallasVista = true
+      try {
+        const { data } = await axios.get(`https://kardex-app.onrender.com/productos/${producto.id}/tallas`)
+        this.tallasVista = data.filter(t => t.unidades > 0)
+      } catch (error) {
+        console.error('Error', error)
+      }
+      this.cargandoTallasVista = false
+    },
     async cargarTallasTransferencia() {
       if (!this.transferencia.producto_id) return
       try {
@@ -335,14 +389,18 @@ h1 { margin-bottom: 16px; color: #1B3A6B; }
   padding: 10px 14px; font-size: 15px;
   border: 1px solid #ccc; border-radius: 8px;
 }
-.btn-transferir {
-  margin-bottom: 16px; padding: 10px 20px;
-  background: #2E5FA3; color: white;
-  border: none; border-radius: 8px;
-  cursor: pointer; font-size: 15px;
-}
 .btn-etiqueta {
   padding: 5px 10px; background: #1E7E50;
+  color: white; border: none;
+  border-radius: 6px; cursor: pointer; font-size: 12px;
+}
+.btn-transferir-row {
+  padding: 5px 10px; background: #2E5FA3;
+  color: white; border: none;
+  border-radius: 6px; cursor: pointer; font-size: 12px;
+}
+.btn-tallas-row {
+  padding: 5px 10px; background: #8C9BAB;
   color: white; border: none;
   border-radius: 6px; cursor: pointer; font-size: 12px;
 }
@@ -431,6 +489,11 @@ tbody tr:hover { background: #D6E4F7; }
 .et-genero { font-size: 10px; color: #666; }
 .qr-canvas { width: 80px !important; height: 80px !important; }
 .et-codigo { font-size: 9px; color: #999; }
+.talla-badge {
+  background: #D6E4F7; color: #1B3A6B;
+  padding: 2px 10px; border-radius: 20px;
+  font-weight: 500; font-size: 14px;
+}
 .exito { color: #1E7E50; margin-top: 12px; }
 .error { color: red; margin-top: 12px; }
 </style>
