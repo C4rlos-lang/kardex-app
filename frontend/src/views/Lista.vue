@@ -113,6 +113,15 @@
             </option>
           </select>
         </div>
+        <div class="campo" v-if="transferencia.talla">
+          <label>Cantidad</label>
+          <input 
+            v-model="transferencia.cantidad" 
+            type="number" 
+            min="1" 
+            placeholder="Ej: 5"
+          />
+        </div>
 
         <button class="btn-confirmar" @click="confirmarTransferencia" :disabled="cargandoTransferencia">
           {{ cargandoTransferencia ? 'Transfiriendo...' : '✅ Confirmar Transferencia' }}
