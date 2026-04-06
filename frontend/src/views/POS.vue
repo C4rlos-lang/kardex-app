@@ -188,7 +188,9 @@ export default {
       this.productoActivo = producto
       this.cargandoTallas = true
       try {
-        const { data } = await axios.get(`${API}/productos/${producto.id}/tallas`)
+        const { data } = await axios.get(
+      `${API}/almacenes/${this.almacenSeleccionado.id}/productos/${producto.id}/tallas`
+    )
         this.tallas = data
       } catch (error) {
         console.error('Error cargando tallas', error)

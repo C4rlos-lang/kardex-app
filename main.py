@@ -93,7 +93,7 @@ class ProductoTallaSchema(BaseModel):
     producto_id: int
     genero:      str
     talla:       str
-    unidades:    int
+    unidades:    int    
 
 class InventarioAlmacenTalla(Base):
     __tablename__ = "inventario_almacen_tallas"
@@ -356,4 +356,13 @@ def crear_venta(venta: VentaSchema, db: Session = Depends(get_db)):
 @app.get("/ventas")
 def listar_ventas(db: Session = Depends(get_db)):
     return db.query(Venta).order_by(Venta.fecha.desc()).all()
+
+@app.get("/almacenes/{almacen_id}/productos/{producto_id}/tallas")
+def tallas_almacen(almacen_id: int, producto_id: int, db: Session = Depends(get_db)):
+    tallas = db.query(InventarioAlmacenTalla).filter(
+        InventarioAlmacenTalla.almacen_id == almacen_id,
+        InventarioAlmacenTalla.producto_id == producto_id,
+        InventarioAlmacenTalla.unidades > 0
+    ).all()
+    return tallas
 
