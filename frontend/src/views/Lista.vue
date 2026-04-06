@@ -96,17 +96,24 @@
         </div>
         <div class="campo">
           <label>Producto</label>
-          <select v-model="transferencia.producto_id">
+          <select v-model="transferencia.producto_id" @change="cargarTallasTransferencia">
             <option value="">Selecciona un producto...</option>
             <option v-for="p in productos" :key="p.id" :value="p.id">
               {{ p.nombre }} (Stock: {{ p.stock }})
             </option>
           </select>
         </div>
-        <div class="campo">
-          <label>Cantidad</label>
-          <input v-model="transferencia.cantidad" type="number" min="1" placeholder="Ej: 10" />
+
+        <div class="campo" v-if="tallasTransferencia.length > 0">
+          <label>Talla</label>
+          <select v-model="transferencia.talla">
+            <option value="">Selecciona una talla...</option>
+            <option v-for="t in tallasTransferencia" :key="t.id" :value="t.talla">
+              Talla {{ t.talla }} - {{ t.genero }} ({{ t.unidades }} uds)
+            </option>
+          </select>
         </div>
+
         <button class="btn-confirmar" @click="confirmarTransferencia" :disabled="cargandoTransferencia">
           {{ cargandoTransferencia ? 'Transfiriendo...' : '✅ Confirmar Transferencia' }}
         </button>
@@ -160,14 +167,15 @@ export default {
       porPagina: 10,
       panelAbierto: false,
       almacenes: [],
-      transferencia: { almacen_id: '', producto_id: '', cantidad: 0 },
+      transferencia: { almacen_id: '', producto_id: '', cantidad: 0, talla: '', genero: '' },
       mensajeTransferencia: '',
       exitoTransferencia: false,
       cargandoTransferencia: false,
       panelEtiquetasAbierto: false,
       productoEtiquetas: null,
       tallas: [],
-      cargandoEtiquetas: false
+      cargandoEtiquetas: false,
+      tallasTransferencia: []
     }
   },
   computed: {
@@ -197,12 +205,33 @@ export default {
     irAPagina(pagina) { this.paginaActual = pagina },
     paginaAnterior() { if (this.paginaActual > 1) this.paginaActual-- },
     paginaSiguiente() { if (this.paginaActual < this.totalPaginas) this.paginaActual++ },
-    async confirmarTransferencia() {
-      if (!this.transferencia.almacen_id || !this.transferencia.producto_id || !this.transferencia.cantidad) {
-        this.mensajeTransferencia = 'Por favor llena todos los campos'
-        this.exitoTransferencia = false
-        return
-      }
+      async confirmarTransferencia() {
+    if (!this.transferencia.almacen_id || !this.transferencia.producto_id || !this.transferencia.cantidad || !this.transferencia.talla) {
+      this.mensajeTransferencia = 'Por favor llena todos los campos incluyendo la talla'
+      this.exitoTransferencia = false
+      return
+    }
+    this.cargandoTransferencia = true
+    try {
+      await axios.post('https://kardex-app.onrender.com/transferencias', {
+        almacen_id: this.transferencia.almacen_id,
+        producto_id: this.transferencia.producto_id,
+        cantidad: parseFloat(this.transferencia.cantidad),
+        talla: this.transferencia.talla,
+        genero: this.tallasTransferencia.find(t => t.talla === this.transferencia.talla)?.genero || ''
+      })
+      this.mensajeTransferencia = '¡Transferencia realizada exitosamente!'
+      this.exitoTransferencia = true
+      this.transferencia = { almacen_id: '', producto_id: '', cantidad: 0, talla: '', genero: '' }
+      this.tallasTransferencia = []
+      const { data } = await axios.get('https://kardex-app.onrender.com/productos')
+      this.productos = data
+    } catch (error) {
+      this.mensajeTransferencia = error.response?.data?.detail || 'Error al transferir'
+      this.exitoTransferencia = false
+    }
+    this.cargandoTransferencia = false
+  },
       this.cargandoTransferencia = true
       try {
         await axios.post('https://kardex-app.onrender.com/transferencias', {
@@ -244,6 +273,15 @@ export default {
           }
         })
       })
+    },
+        async cargarTallasTransferencia() {
+      if (!this.transferencia.producto_id) return
+      try {
+        const { data } = await axios.get(`https://kardex-app.onrender.com/productos/${this.transferencia.producto_id}/tallas`)
+        this.tallasTransferencia = data.filter(t => t.unidades > 0)
+      } catch (error) {
+        console.error('Error cargando tallas', error)
+      }
     },
     async imprimir() {
       const QRCode = await import('qrcode')
