@@ -171,11 +171,11 @@ export default {
       mensajeTransferencia: '',
       exitoTransferencia: false,
       cargandoTransferencia: false,
+      tallasTransferencia: [],
       panelEtiquetasAbierto: false,
       productoEtiquetas: null,
       tallas: [],
-      cargandoEtiquetas: false,
-      tallasTransferencia: []
+      cargandoEtiquetas: false
     }
   },
   computed: {
@@ -205,43 +205,34 @@ export default {
     irAPagina(pagina) { this.paginaActual = pagina },
     paginaAnterior() { if (this.paginaActual > 1) this.paginaActual-- },
     paginaSiguiente() { if (this.paginaActual < this.totalPaginas) this.paginaActual++ },
-      async confirmarTransferencia() {
-    if (!this.transferencia.almacen_id || !this.transferencia.producto_id || !this.transferencia.cantidad || !this.transferencia.talla) {
-      this.mensajeTransferencia = 'Por favor llena todos los campos incluyendo la talla'
-      this.exitoTransferencia = false
-      return
-    }
-    this.cargandoTransferencia = true
-    try {
-      await axios.post('https://kardex-app.onrender.com/transferencias', {
-        almacen_id: this.transferencia.almacen_id,
-        producto_id: this.transferencia.producto_id,
-        cantidad: parseFloat(this.transferencia.cantidad),
-        talla: this.transferencia.talla,
-        genero: this.tallasTransferencia.find(t => t.talla === this.transferencia.talla)?.genero || ''
-      })
-      this.mensajeTransferencia = '¡Transferencia realizada exitosamente!'
-      this.exitoTransferencia = true
-      this.transferencia = { almacen_id: '', producto_id: '', cantidad: 0, talla: '', genero: '' }
-      this.tallasTransferencia = []
-      const { data } = await axios.get('https://kardex-app.onrender.com/productos')
-      this.productos = data
-    } catch (error) {
-      this.mensajeTransferencia = error.response?.data?.detail || 'Error al transferir'
-      this.exitoTransferencia = false
-    }
-    this.cargandoTransferencia = false
-  },
+    async cargarTallasTransferencia() {
+      if (!this.transferencia.producto_id) return
+      try {
+        const { data } = await axios.get(`https://kardex-app.onrender.com/productos/${this.transferencia.producto_id}/tallas`)
+        this.tallasTransferencia = data.filter(t => t.unidades > 0)
+      } catch (error) {
+        console.error('Error cargando tallas', error)
+      }
+    },
+    async confirmarTransferencia() {
+      if (!this.transferencia.almacen_id || !this.transferencia.producto_id || !this.transferencia.cantidad || !this.transferencia.talla) {
+        this.mensajeTransferencia = 'Por favor llena todos los campos incluyendo la talla'
+        this.exitoTransferencia = false
+        return
+      }
       this.cargandoTransferencia = true
       try {
         await axios.post('https://kardex-app.onrender.com/transferencias', {
           almacen_id: this.transferencia.almacen_id,
           producto_id: this.transferencia.producto_id,
-          cantidad: parseFloat(this.transferencia.cantidad)
+          cantidad: parseFloat(this.transferencia.cantidad),
+          talla: this.transferencia.talla,
+          genero: this.tallasTransferencia.find(t => t.talla === this.transferencia.talla)?.genero || ''
         })
         this.mensajeTransferencia = '¡Transferencia realizada exitosamente!'
         this.exitoTransferencia = true
-        this.transferencia = { almacen_id: '', producto_id: '', cantidad: 0 }
+        this.transferencia = { almacen_id: '', producto_id: '', cantidad: 0, talla: '', genero: '' }
+        this.tallasTransferencia = []
         const { data } = await axios.get('https://kardex-app.onrender.com/productos')
         this.productos = data
       } catch (error) {
@@ -268,24 +259,14 @@ export default {
         this.tallas.forEach((t, i) => {
           const canvas = document.getElementById(`qr-${i}`)
           if (canvas) {
-            const texto = `SKU: ${this.productoEtiquetas.sku}\nNombre: ${this.productoEtiquetas.nombre}\nTalla: ${t.talla}\nGenero: ${t.genero}`
+            const texto = `${this.productoEtiquetas.sku} | ${this.productoEtiquetas.nombre} | Talla: ${t.talla} | ${t.genero}`
             QRCode.toCanvas(canvas, texto, { width: 80 })
           }
         })
       })
     },
-        async cargarTallasTransferencia() {
-      if (!this.transferencia.producto_id) return
-      try {
-        const { data } = await axios.get(`https://kardex-app.onrender.com/productos/${this.transferencia.producto_id}/tallas`)
-        this.tallasTransferencia = data.filter(t => t.unidades > 0)
-      } catch (error) {
-        console.error('Error cargando tallas', error)
-      }
-    },
     async imprimir() {
       const QRCode = await import('qrcode')
-      
       const etiquetas = await Promise.all(this.tallas.map(async (t) => {
         const texto = `${this.productoEtiquetas.sku} | ${this.productoEtiquetas.nombre} | Talla: ${t.talla} | ${t.genero}`
         const qrBase64 = await QRCode.toDataURL(texto, { width: 100, margin: 1 })
@@ -300,7 +281,6 @@ export default {
           </div>
         `
       }))
-
       const html = `
         <html><head><title>Etiquetas</title>
         <style>
@@ -318,13 +298,10 @@ export default {
           <div class="etiquetas-wrap">${etiquetas.join('')}</div>
         </body></html>
       `
-
       const blob = new Blob([html], { type: 'text/html' })
       const url = URL.createObjectURL(blob)
       const ventana = window.open(url, '_blank')
-      if (!ventana) {
-        alert('Por favor permite las ventanas emergentes para imprimir')
-      }
+      if (!ventana) alert('Por favor permite las ventanas emergentes para imprimir')
     }
   },
   async mounted() {
