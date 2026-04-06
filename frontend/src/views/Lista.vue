@@ -41,9 +41,6 @@
           <td>{{ producto.stock }}</td>
           <td>
             <div style="display:flex; gap:6px; flex-wrap:wrap;">
-              <button class="btn-etiqueta" @click="verEtiquetas(producto)">
-                🏷️ Etiquetas
-              </button>
               <button class="btn-transferir-row" @click="abrirTransferencia(producto)">
                 📦 Transferir
               </button>
