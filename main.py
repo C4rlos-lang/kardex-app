@@ -85,6 +85,9 @@ class TransferenciaSchema(BaseModel):
     producto_id: int
     almacen_id:  int
     cantidad:    float
+    cantidad:    float
+    talla:       str
+    genero:      str
 
 class ProductoTallaSchema(BaseModel):
     producto_id: int
