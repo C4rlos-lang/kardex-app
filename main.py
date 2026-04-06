@@ -228,3 +228,84 @@ def crear_tallas(tallas: list[ProductoTallaSchema], db: Session = Depends(get_db
     db.commit()
     return {"mensaje": "Tallas guardadas"}
 
+
+# ── Ventas ────────────────────────────────────────────────────────
+class Venta(Base):
+    __tablename__ = "ventas"
+    id          = Column(Integer, primary_key=True)
+    almacen_id  = Column(Integer)
+    metodo_pago = Column(String)
+    total       = Column(Float)
+    fecha       = Column(DateTime, default=datetime.utcnow)
+
+class DetalleVenta(Base):
+    __tablename__ = "detalle_ventas"
+    id              = Column(Integer, primary_key=True)
+    venta_id        = Column(Integer)
+    producto_id     = Column(Integer)
+    talla           = Column(String)
+    cantidad        = Column(Integer)
+    precio_unitario = Column(Float)
+
+class DetalleVentaSchema(BaseModel):
+    producto_id:     int
+    talla:           str
+    cantidad:        int
+    precio_unitario: float
+
+class VentaSchema(BaseModel):
+    almacen_id:  int
+    metodo_pago: str
+    total:       float
+    detalle:     list[DetalleVentaSchema]
+
+@app.post("/ventas")
+def crear_venta(venta: VentaSchema, db: Session = Depends(get_db)):
+    # Verificar stock en inventario_almacen para cada item
+    for item in venta.detalle:
+        inv = db.query(InventarioAlmacen).filter(
+            InventarioAlmacen.almacen_id == venta.almacen_id,
+            InventarioAlmacen.producto_id == item.producto_id
+        ).first()
+        if not inv or inv.stock < item.cantidad:
+            producto = db.query(Producto).filter(Producto.id == item.producto_id).first()
+            raise HTTPException(
+                status_code=400,
+                detail=f"Stock insuficiente para {producto.nombre} talla {item.talla}"
+            )
+
+    # Crear venta
+    nueva_venta = Venta(
+        almacen_id=venta.almacen_id,
+        metodo_pago=venta.metodo_pago,
+        total=venta.total
+    )
+    db.add(nueva_venta)
+    db.flush()
+
+    # Crear detalle y descontar stock
+    for item in venta.detalle:
+        detalle = DetalleVenta(
+            venta_id=nueva_venta.id,
+            producto_id=item.producto_id,
+            talla=item.talla,
+            cantidad=item.cantidad,
+            precio_unitario=item.precio_unitario
+        )
+        db.add(detalle)
+
+        # Descontar del inventario_almacen
+        inv = db.query(InventarioAlmacen).filter(
+            InventarioAlmacen.almacen_id == venta.almacen_id,
+            InventarioAlmacen.producto_id == item.producto_id
+        ).first()
+        inv.stock -= item.cantidad
+
+    db.commit()
+    db.refresh(nueva_venta)
+    return nueva_venta
+
+@app.get("/ventas")
+def listar_ventas(db: Session = Depends(get_db)):
+    return db.query(Venta).order_by(Venta.fecha.desc()).all()
+
