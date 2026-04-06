@@ -197,10 +197,17 @@ export default {
       }
       this.cargandoTallas = false
     },
-    agregarAlCarrito(talla) {
+      agregarAlCarrito(talla) {
       const existente = this.carrito.find(
         i => i.producto_id === this.productoActivo.id && i.talla === talla.talla
       )
+      const cantidadEnCarrito = existente ? existente.cantidad : 0
+      
+      if (cantidadEnCarrito >= talla.unidades) {
+        alert(`Solo hay ${talla.unidades} unidades disponibles de talla ${talla.talla}`)
+        return
+      }
+
       if (existente) {
         existente.cantidad++
       } else {
@@ -210,13 +217,18 @@ export default {
           talla: talla.talla,
           genero: talla.genero,
           precio: this.productoActivo.precio,
-          cantidad: 1
+          cantidad: 1,
+          maxUnidades: talla.unidades
         })
       }
     },
-    incrementar(i) { this.carrito[i].cantidad++ },
-    decrementar(i) {
-      if (this.carrito[i].cantidad > 1) this.carrito[i].cantidad--
+        incrementar(i) {
+      const item = this.carrito[i]
+      if (item.cantidad >= item.maxUnidades) {
+        alert(`Solo hay ${item.maxUnidades} unidades disponibles de talla ${item.talla}`)
+        return
+      }
+      item.cantidad++
     },
     eliminarItem(i) { this.carrito.splice(i, 1) },
     async confirmarVenta() {

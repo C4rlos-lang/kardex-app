@@ -353,9 +353,61 @@ def crear_venta(venta: VentaSchema, db: Session = Depends(get_db)):
     db.refresh(nueva_venta)
     return nueva_venta
 
-@app.get("/ventas")
-def listar_ventas(db: Session = Depends(get_db)):
-    return db.query(Venta).order_by(Venta.fecha.desc()).all()
+@app.post("/ventas")
+def crear_venta(venta: VentaSchema, db: Session = Depends(get_db)):
+    # Verificar stock en inventario_almacen_tallas para cada item
+    for item in venta.detalle:
+        inv_talla = db.query(InventarioAlmacenTalla).filter(
+            InventarioAlmacenTalla.almacen_id == venta.almacen_id,
+            InventarioAlmacenTalla.producto_id == item.producto_id,
+            InventarioAlmacenTalla.talla == item.talla
+        ).first()
+        if not inv_talla or inv_talla.unidades < item.cantidad:
+            producto = db.query(Producto).filter(Producto.id == item.producto_id).first()
+            raise HTTPException(
+                status_code=400,
+                detail=f"Stock insuficiente para {producto.nombre} talla {item.talla}"
+            )
+
+    # Crear venta
+    nueva_venta = Venta(
+        almacen_id=venta.almacen_id,
+        metodo_pago=venta.metodo_pago,
+        total=venta.total
+    )
+    db.add(nueva_venta)
+    db.flush()
+
+    # Crear detalle y descontar stock
+    for item in venta.detalle:
+        detalle = DetalleVenta(
+            venta_id=nueva_venta.id,
+            producto_id=item.producto_id,
+            talla=item.talla,
+            cantidad=item.cantidad,
+            precio_unitario=item.precio_unitario
+        )
+        db.add(detalle)
+
+        # Descontar de inventario_almacen_tallas
+        inv_talla = db.query(InventarioAlmacenTalla).filter(
+            InventarioAlmacenTalla.almacen_id == venta.almacen_id,
+            InventarioAlmacenTalla.producto_id == item.producto_id,
+            InventarioAlmacenTalla.talla == item.talla
+        ).first()
+        inv_talla.unidades -= item.cantidad
+
+        # Descontar de inventario_almacen (total)
+        inv = db.query(InventarioAlmacen).filter(
+            InventarioAlmacen.almacen_id == venta.almacen_id,
+            InventarioAlmacen.producto_id == item.producto_id
+        ).first()
+        if inv:
+            inv.stock -= item.cantidad
+
+    db.commit()
+    db.refresh(nueva_venta)
+    return nueva_venta
 
 @app.get("/almacenes/{almacen_id}/productos/{producto_id}/tallas")
 def tallas_almacen(almacen_id: int, producto_id: int, db: Session = Depends(get_db)):
