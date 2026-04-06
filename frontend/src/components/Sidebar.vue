@@ -6,6 +6,7 @@
       <router-link to="/lista">🏭 Bodega Principal</router-link>
       <router-link to="/almacenes">🏪 Almacenes</router-link>
       <router-link to="/lista-almacenes">📋 Lista Almacenes</router-link>
+      <router-link to="/pos">🛒 Punto de Venta</router-link>
     </nav>
   </div>
 </template>

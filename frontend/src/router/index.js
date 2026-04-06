@@ -18,3 +18,8 @@ const router = createRouter({
 })
 
 export default router
+
+import POS from '../views/POS.vue'
+
+// En routes agrega:
+{ path: '/pos', component: POS },
