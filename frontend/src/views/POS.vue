@@ -20,7 +20,6 @@
     <!-- POS principal -->
     <div v-else class="pos-wrap">
 
-      <!-- Header con almacén seleccionado -->
       <div class="pos-header">
         <span>🏪 {{ almacenSeleccionado.nombre }}</span>
         <button class="btn-cambiar" @click="almacenSeleccionado = null">Cambiar</button>
@@ -37,6 +36,18 @@
             placeholder="🔍 Buscar por nombre o SKU..."
             class="buscador"
           />
+
+          <!-- Botón QR -->
+          <button class="btn-qr" @click="activarQR">
+            📷 Escanear QR
+          </button>
+
+          <!-- Lector QR -->
+          <div v-if="escaneando">
+            <div id="lector-qr"></div>
+            <button class="btn-cerrar-qr" @click="detenerQR">✕ Cerrar escáner</button>
+          </div>
+
           <p v-if="cargandoProductos">Cargando...</p>
           <div class="lista-productos">
             <div
@@ -101,7 +112,6 @@
               <span class="total">${{ totalCarrito.toLocaleString() }}</span>
             </div>
 
-            <!-- Método de pago -->
             <div class="campo">
               <label>Método de pago</label>
               <div class="metodos-grid">
@@ -156,7 +166,9 @@ export default {
       metodosPago: ['Efectivo', 'Tarjeta', 'Nequi', 'Brew B', 'Daviplata'],
       cargandoVenta: false,
       mensajeVenta: '',
-      exitoVenta: false
+      exitoVenta: false,
+      escaneando: false,
+      scannerInstancia: null
     }
   },
   computed: {
@@ -189,25 +201,23 @@ export default {
       this.cargandoTallas = true
       try {
         const { data } = await axios.get(
-      `${API}/almacenes/${this.almacenSeleccionado.id}/productos/${producto.id}/tallas`
-    )
+          `${API}/almacenes/${this.almacenSeleccionado.id}/productos/${producto.id}/tallas`
+        )
         this.tallas = data
       } catch (error) {
         console.error('Error cargando tallas', error)
       }
       this.cargandoTallas = false
     },
-      agregarAlCarrito(talla) {
+    agregarAlCarrito(talla) {
       const existente = this.carrito.find(
         i => i.producto_id === this.productoActivo.id && i.talla === talla.talla
       )
       const cantidadEnCarrito = existente ? existente.cantidad : 0
-      
       if (cantidadEnCarrito >= talla.unidades) {
         alert(`Solo hay ${talla.unidades} unidades disponibles de talla ${talla.talla}`)
         return
       }
-
       if (existente) {
         existente.cantidad++
       } else {
@@ -222,7 +232,7 @@ export default {
         })
       }
     },
-        incrementar(i) {
+    incrementar(i) {
       const item = this.carrito[i]
       if (item.cantidad >= item.maxUnidades) {
         alert(`Solo hay ${item.maxUnidades} unidades disponibles de talla ${item.talla}`)
@@ -230,38 +240,101 @@ export default {
       }
       item.cantidad++
     },
+    decrementar(i) {
+      if (this.carrito[i].cantidad > 1) {
+        this.carrito[i].cantidad--
+      } else {
+        this.eliminarItem(i)
+      }
+    },
     eliminarItem(i) { this.carrito.splice(i, 1) },
+    activarQR() {
+      this.escaneando = true
+      this.$nextTick(() => {
+        import('html5-qrcode').then(({ Html5Qrcode }) => {
+          this.scannerInstancia = new Html5Qrcode('lector-qr')
+          this.scannerInstancia.start(
+            { facingMode: 'environment' },
+            { fps: 10, qrbox: { width: 250, height: 250 } },
+            (texto) => {
+              this.procesarQR(texto)
+              this.detenerQR()
+            },
+            (error) => {}
+          ).catch(err => {
+            console.error('Error cámara:', err)
+            alert('No se pudo acceder a la cámara')
+            this.escaneando = false
+          })
+        })
+      })
+    },
+    detenerQR() {
+      if (this.scannerInstancia) {
+        this.scannerInstancia.stop().then(() => {
+          this.scannerInstancia = null
+          this.escaneando = false
+        })
+      }
+    },
+    async procesarQR(texto) {
+      const partes = texto.split('|').map(p => p.trim())
+      if (partes.length < 3) {
+        alert('QR no reconocido')
+        return
+      }
+      const sku = partes[0]
+      const talla = partes[2].replace('Talla:', '').trim()
+      const genero = partes[3]
+
+      const producto = this.productos.find(p => p.sku === sku)
+      if (!producto) {
+        alert(`Producto con SKU ${sku} no encontrado en este almacén`)
+        return
+      }
+
+      await this.seleccionarProducto(producto)
+
+      const tallaEncontrada = this.tallas.find(
+        t => t.talla === talla && t.genero === genero
+      )
+      if (!tallaEncontrada) {
+        alert(`Talla ${talla} no disponible para este producto`)
+        return
+      }
+
+      this.agregarAlCarrito(tallaEncontrada)
+    },
     async confirmarVenta() {
-  this.cargandoVenta = true
-  try {
-    await axios.post(`${API}/ventas`, {
-      almacen_id: this.almacenSeleccionado.id,
-      metodo_pago: this.metodoPago,
-      total: this.totalCarrito,
-      detalle: this.carrito.map(item => ({
-        producto_id: item.producto_id,
-        talla: item.talla,
-        cantidad: item.cantidad,
-        precio_unitario: item.precio
-      }))
-    })
-    this.mensajeVenta = '¡Venta registrada exitosamente! 🎉'
-    this.exitoVenta = true
-    this.carrito = []
-    this.metodoPago = ''
-    this.productoActivo = null
-    this.tallas = []
-    // Recargar inventario del almacén
-    const { data } = await axios.get(`${API}/almacenes/${this.almacenSeleccionado.id}/inventario`)
-    this.productos = data
-    // Limpiar mensaje después de 3 segundos
-    setTimeout(() => { this.mensajeVenta = '' }, 3000)
-  } catch (error) {
-    this.mensajeVenta = error.response?.data?.detail || 'Error al procesar la venta'
-    this.exitoVenta = false
-  }
-  this.cargandoVenta = false
-},
+      this.cargandoVenta = true
+      try {
+        await axios.post(`${API}/ventas`, {
+          almacen_id: this.almacenSeleccionado.id,
+          metodo_pago: this.metodoPago,
+          total: this.totalCarrito,
+          detalle: this.carrito.map(item => ({
+            producto_id: item.producto_id,
+            talla: item.talla,
+            cantidad: item.cantidad,
+            precio_unitario: item.precio
+          }))
+        })
+        this.mensajeVenta = '¡Venta registrada exitosamente! 🎉'
+        this.exitoVenta = true
+        this.carrito = []
+        this.metodoPago = ''
+        this.productoActivo = null
+        this.tallas = []
+        const { data } = await axios.get(`${API}/almacenes/${this.almacenSeleccionado.id}/inventario`)
+        this.productos = data
+        setTimeout(() => { this.mensajeVenta = '' }, 3000)
+      } catch (error) {
+        this.mensajeVenta = error.response?.data?.detail || 'Error al procesar la venta'
+        this.exitoVenta = false
+      }
+      this.cargandoVenta = false
+    }
+  },
   async mounted() {
     try {
       const { data } = await axios.get(`${API}/almacenes`)
@@ -295,9 +368,7 @@ label { font-size: 13px; color: #555; display: block; margin-bottom: 8px; }
   background: none; border: 1px solid white;
   color: white; padding: 4px 12px; border-radius: 4px; cursor: pointer;
 }
-.pos-grid {
-  display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px;
-}
+.pos-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; }
 .panel-productos, .panel-tallas, .panel-carrito {
   background: white; border-radius: 8px;
   padding: 16px; box-shadow: 0 2px 8px rgba(0,0,0,0.08);
@@ -308,6 +379,19 @@ label { font-size: 13px; color: #555; display: block; margin-bottom: 8px; }
   border: 1px solid #ccc; border-radius: 6px;
   font-size: 14px; margin-bottom: 12px;
 }
+.btn-qr {
+  width: 100%; padding: 8px;
+  background: #2E5FA3; color: white;
+  border: none; border-radius: 6px;
+  cursor: pointer; font-size: 14px; margin-bottom: 12px;
+}
+.btn-cerrar-qr {
+  width: 100%; padding: 6px;
+  background: #c0392b; color: white;
+  border: none; border-radius: 6px;
+  cursor: pointer; font-size: 13px; margin-top: 8px;
+}
+#lector-qr { width: 100%; border-radius: 8px; overflow: hidden; }
 .lista-productos { display: flex; flex-direction: column; gap: 8px; }
 .producto-card {
   display: flex; gap: 10px; align-items: center;
@@ -338,9 +422,7 @@ label { font-size: 13px; color: #555; display: block; margin-bottom: 8px; }
 }
 .item-nombre { font-size: 13px; font-weight: 500; }
 .item-talla { font-size: 11px; color: #888; }
-.item-controls {
-  display: flex; align-items: center; gap: 8px;
-}
+.item-controls { display: flex; align-items: center; gap: 8px; }
 .item-controls button {
   width: 24px; height: 24px; border: 1px solid #ccc;
   background: white; border-radius: 4px; cursor: pointer;
