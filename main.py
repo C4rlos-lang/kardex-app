@@ -76,6 +76,7 @@ class Venta(Base):
     almacen_id  = Column(Integer)
     metodo_pago = Column(String)
     total       = Column(Float)
+    cliente_id  = Column(Integer, nullable=True)  # ← agrega esta línea
     fecha       = Column(DateTime, default=datetime.utcnow)
 
 class DetalleVenta(Base):
