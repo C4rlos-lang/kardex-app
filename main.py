@@ -6,6 +6,7 @@ from sqlalchemy.orm import sessionmaker, Session
 from pydantic import BaseModel
 from typing import Optional
 from datetime import datetime
+from pydantic import BaseModel, EmailStr
 
 # ── 1. Base de datos ──────────────────────────────────────────────
 engine = create_engine("postgresql://postgres.thcdadlejpdhaaekyost:Kardex2026App@aws-1-us-east-1.pooler.supabase.com:6543/postgres?sslmode=require")
@@ -141,11 +142,12 @@ class VentaSchema(BaseModel):
     metodo_pago: str
     total:       float
     detalle:     list[DetalleVentaSchema]
+    cliente:     Optional[ClienteSchema] = None  # ← ¿está esta línea?
 
 class ClienteSchema(BaseModel):
     nombre:    Optional[str] = None
     telefono:  Optional[str] = None
-    correo:    Optional[str] = None
+    correo:    Optional[EmailStr] = None
     genero:    Optional[str] = None
     documento: Optional[str] = None
 
