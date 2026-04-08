@@ -397,3 +397,117 @@ def crear_venta(venta: VentaSchema, db: Session = Depends(get_db)):
 def listar_ventas(db: Session = Depends(get_db)):
     return db.query(Venta).order_by(Venta.fecha.desc()).all()
 
+# ── Dashboard ─────────────────────────────────────────────────────
+from sqlalchemy import func, extract
+
+@app.get("/dashboard")
+def dashboard(db: Session = Depends(get_db)):
+    from datetime import date
+    hoy = datetime.utcnow()
+    mes_actual = hoy.month
+    anio_actual = hoy.year
+
+    # ── TENDENCIAS ────────────────────────────────────────────────
+    # Producto más vendido
+    producto_top = db.query(
+        DetalleVenta.producto_id,
+        func.sum(DetalleVenta.cantidad).label("total")
+    ).group_by(DetalleVenta.producto_id).order_by(func.sum(DetalleVenta.cantidad).desc()).first()
+
+    nombre_producto_top = None
+    if producto_top:
+        p = db.query(Producto).filter(Producto.id == producto_top.producto_id).first()
+        nombre_producto_top = p.nombre if p else None
+
+    # Talla más vendida
+    talla_top = db.query(
+        DetalleVenta.talla,
+        func.sum(DetalleVenta.cantidad).label("total")
+    ).group_by(DetalleVenta.talla).order_by(func.sum(DetalleVenta.cantidad).desc()).first()
+
+    # Ventas por mes
+    ventas_por_mes = db.query(
+        extract('month', Venta.fecha).label("mes"),
+        func.sum(Venta.total).label("total")
+    ).group_by(extract('month', Venta.fecha)).order_by(extract('month', Venta.fecha)).all()
+
+    # Ventas por día de la semana
+    ventas_por_dia = db.query(
+        extract('dow', Venta.fecha).label("dia"),
+        func.count(Venta.id).label("total")
+    ).group_by(extract('dow', Venta.fecha)).order_by(extract('dow', Venta.fecha)).all()
+
+    # Ventas por semana del año
+    ventas_por_semana = db.query(
+        extract('week', Venta.fecha).label("semana"),
+        func.sum(Venta.total).label("total")
+    ).group_by(extract('week', Venta.fecha)).order_by(extract('week', Venta.fecha)).all()
+
+    # ── INVENTARIO ────────────────────────────────────────────────
+    total_productos = db.query(func.count(Producto.id)).scalar()
+    stock_bajo = db.query(func.count(Producto.id)).filter(Producto.stock < 5).scalar()
+
+    # ── CLIENTES ──────────────────────────────────────────────────
+    total_clientes = db.query(func.count(Cliente.id)).scalar()
+
+    genero_top = db.query(
+        Cliente.genero,
+        func.count(Cliente.id).label("total")
+    ).filter(Cliente.genero != None, Cliente.genero != '').group_by(Cliente.genero).order_by(func.count(Cliente.id).desc()).first()
+
+    clientes_nuevos_mes = db.query(func.count(Cliente.id)).filter(
+        extract('month', Cliente.fecha_registro) == mes_actual,
+        extract('year', Cliente.fecha_registro) == anio_actual
+    ).scalar()
+
+    # Recurrencia — clientes con más de 1 compra
+    recurrencia = db.query(
+        Venta.cliente_id,
+        func.count(Venta.id).label("compras")
+    ).filter(Venta.cliente_id != None).group_by(Venta.cliente_id).order_by(func.count(Venta.id).desc()).all()
+
+    clientes_recurrentes = len([r for r in recurrencia if r.compras > 1])
+    promedio_compras = round(sum(r.compras for r in recurrencia) / len(recurrencia), 1) if recurrencia else 0
+
+    # ── FINANCIERO ────────────────────────────────────────────────
+    ventas_mes = db.query(func.sum(Venta.total)).filter(
+        extract('month', Venta.fecha) == mes_actual,
+        extract('year', Venta.fecha) == anio_actual
+    ).scalar() or 0
+
+    metodo_top = db.query(
+        Venta.metodo_pago,
+        func.count(Venta.id).label("total")
+    ).group_by(Venta.metodo_pago).order_by(func.count(Venta.id).desc()).first()
+
+    total_ventas = db.query(func.count(Venta.id)).scalar()
+    total_ingresos = db.query(func.sum(Venta.total)).scalar() or 0
+    ticket_promedio = round(total_ingresos / total_ventas, 0) if total_ventas else 0
+
+    return {
+        "tendencias": {
+            "producto_top": nombre_producto_top,
+            "talla_top": talla_top.talla if talla_top else None,
+            "ventas_por_mes": [{"mes": int(v.mes), "total": float(v.total)} for v in ventas_por_mes],
+            "ventas_por_dia": [{"dia": int(v.dia), "total": int(v.total)} for v in ventas_por_dia],
+            "ventas_por_semana": [{"semana": int(v.semana), "total": float(v.total)} for v in ventas_por_semana],
+        },
+        "inventario": {
+            "total_productos": total_productos,
+            "stock_bajo": stock_bajo,
+        },
+        "clientes": {
+            "total_clientes": total_clientes,
+            "genero_top": genero_top.genero if genero_top else None,
+            "clientes_nuevos_mes": clientes_nuevos_mes,
+            "clientes_recurrentes": clientes_recurrentes,
+            "promedio_compras": promedio_compras,
+        },
+        "financiero": {
+            "ventas_mes": round(ventas_mes, 0),
+            "metodo_top": metodo_top.metodo_pago if metodo_top else None,
+            "ticket_promedio": ticket_promedio,
+            "total_ventas": total_ventas,
+        }
+    }
+
