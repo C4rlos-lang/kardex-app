@@ -44,10 +44,10 @@
           <p v-if="cargandoProductos">Cargando...</p>
           <div class="lista-productos">
             <div
-              v-for="p in productosFiltrados" :key="p.id"
+              v-for="p in productosFiltrados" :key="p.sku"
               class="producto-card"
               @click="seleccionarProducto(p)"
-              :class="{ activo: productoActivo?.id === p.id }"
+              :class="{ activo: productoActivo?.sku === p.sku }"
             >
               <img v-if="p.foto_url" :src="p.foto_url" class="prod-foto" />
               <div>
@@ -130,10 +130,14 @@
       </div>
     </div>
 
-    <!-- Modal confirmación y datos cliente -->
-    <div class="modal-overlay" v-if="mostrarModalVenta">
-      <div class="modal">
+    <!-- Panel lateral confirmación venta -->
+    <div class="overlay" v-if="mostrarModalVenta" @click.self="mostrarModalVenta = false"></div>
+    <div class="panel-lateral" :class="{ abierto: mostrarModalVenta }">
+      <div class="panel-header">
         <h2>✅ Confirmar Venta</h2>
+        <button class="cerrar" @click="mostrarModalVenta = false">✕</button>
+      </div>
+      <div class="panel-body">
         <p class="modal-total">Total: <strong>${{ totalCarrito.toLocaleString() }}</strong></p>
         <p class="modal-metodo">Método: {{ metodoPago }}</p>
 
@@ -187,11 +191,15 @@
       </div>
     </div>
 
-    <!-- Modal éxito -->
-    <div class="modal-overlay" v-if="ventaConfirmada">
-      <div class="modal modal-exito">
+    <!-- Panel éxito -->
+    <div class="overlay" v-if="ventaConfirmada" @click.self="ventaConfirmada = false"></div>
+    <div class="panel-lateral" :class="{ abierto: ventaConfirmada }">
+      <div class="panel-header">
+        <h2>🎉 ¡Venta registrada!</h2>
+        <button class="cerrar" @click="ventaConfirmada = false">✕</button>
+      </div>
+      <div class="panel-body exito-body">
         <div class="exito-icon">🎉</div>
-        <h2>¡Venta registrada!</h2>
         <p class="modal-total">Total cobrado: <strong>${{ ultimoTotal.toLocaleString() }}</strong></p>
         <p class="modal-metodo">Método: {{ ultimoMetodo }}</p>
         <button class="btn-confirmar-modal" @click="ventaConfirmada = false">
@@ -243,11 +251,21 @@ export default {
   computed: {
     productosFiltrados() {
       const b = this.busqueda.toLowerCase()
-      if (!b) return this.productos
-      return this.productos.filter(p =>
-        (p.nombre && p.nombre.toLowerCase().includes(b)) ||
-        (p.sku && p.sku.toLowerCase().includes(b))
-      )
+      let lista = this.productos
+      if (b) {
+        lista = lista.filter(p =>
+          (p.nombre && p.nombre.toLowerCase().includes(b)) ||
+          (p.sku && p.sku.toLowerCase().includes(b))
+        )
+      }
+      const mapa = {}
+      lista.forEach(p => {
+        if (!mapa[p.sku]) {
+          mapa[p.sku] = { ...p, stock: 0 }
+        }
+        mapa[p.sku].stock += p.stock
+      })
+      return Object.values(mapa)
     },
     totalCarrito() {
       return this.carrito.reduce((sum, item) => sum + item.precio * item.cantidad, 0)
@@ -348,13 +366,12 @@ export default {
     },
     async procesarQR(texto) {
       const partes = texto.split('|').map(p => p.trim())
-      if (partes.length < 3) {
+      if (partes.length < 2) {
         alert('QR no reconocido')
         return
       }
       const sku = partes[0]
-      const talla = partes[2].replace('Talla:', '').trim()
-      const genero = partes[3]
+      const talla = partes[2] ? partes[2].replace('Talla:', '').trim() : null
 
       const producto = this.productos.find(p => p.sku === sku)
       if (!producto) {
@@ -362,14 +379,13 @@ export default {
         return
       }
       await this.seleccionarProducto(producto)
-      const tallaEncontrada = this.tallas.find(
-        t => t.talla === talla && t.genero === genero
-      )
-      if (!tallaEncontrada) {
-        alert(`Talla ${talla} no disponible para este producto`)
-        return
+
+      if (talla) {
+        const tallaEncontrada = this.tallas.find(t => t.talla === talla)
+        if (tallaEncontrada) {
+          this.agregarAlCarrito(tallaEncontrada)
+        }
       }
-      this.agregarAlCarrito(tallaEncontrada)
     },
     async confirmarVenta() {
       this.cargandoVenta = true
@@ -519,27 +535,37 @@ label { font-size: 13px; color: #555; display: block; margin-bottom: 8px; }
   cursor: pointer; font-size: 15px;
 }
 .btn-venta:disabled { background: #ccc; }
-.modal-overlay {
+.overlay {
   position: fixed; top: 0; left: 0;
   width: 100%; height: 100%;
-  background: rgba(0,0,0,0.5);
-  z-index: 200;
-  display: flex; align-items: center; justify-content: center;
+  background: rgba(0,0,0,0.3); z-index: 100;
 }
-.modal {
-  background: white; border-radius: 12px;
-  padding: 32px; width: 480px;
-  max-height: 90vh; overflow-y: auto;
-  box-shadow: 0 8px 32px rgba(0,0,0,0.2);
+.panel-lateral {
+  position: fixed; top: 0; right: -480px;
+  width: 480px; height: 100%;
+  background: white;
+  box-shadow: -4px 0 20px rgba(0,0,0,0.15);
+  z-index: 101; transition: right 0.3s ease;
+  display: flex; flex-direction: column;
 }
-.modal h2 { color: #1B3A6B; margin-bottom: 8px; }
+.panel-lateral.abierto { right: 0; }
+.panel-header {
+  display: flex; justify-content: space-between;
+  align-items: center; padding: 20px 24px;
+  background: #1B3A6B; color: white;
+}
+.panel-header h2 { margin: 0; font-size: 18px; color: white; }
+.cerrar {
+  background: none; border: none;
+  color: white; font-size: 20px; cursor: pointer;
+}
+.panel-body { padding: 24px; overflow-y: auto; flex: 1; }
 .modal-total { font-size: 18px; margin-bottom: 8px; color: #333; }
 .modal-metodo { font-size: 14px; color: #888; margin-bottom: 16px; }
 .modal-seccion { border-top: 1px solid #eee; padding-top: 16px; margin-bottom: 16px; }
 .modal-label { font-size: 14px; font-weight: 500; color: #1B3A6B; margin-bottom: 12px; }
 .opcional { font-size: 12px; color: #888; font-weight: 400; }
-.modal .campo { margin-bottom: 12px; }
-.modal input, .modal select {
+.panel-body input, .panel-body select {
   width: 100%; padding: 8px 12px;
   border: 1px solid #ccc; border-radius: 6px;
   font-size: 14px; margin-top: 4px;
@@ -558,8 +584,8 @@ label { font-size: 13px; color: #555; display: block; margin-bottom: 8px; }
   cursor: pointer; font-size: 14px;
 }
 .btn-confirmar-modal:disabled { background: #ccc; }
-.modal-exito { text-align: center; }
-.exito-icon { font-size: 48px; margin-bottom: 16px; }
+.exito-body { text-align: center; padding-top: 48px; }
+.exito-icon { font-size: 64px; margin-bottom: 24px; }
 .exito { color: #1E7E50; margin-top: 12px; }
 .error { color: red; margin-top: 12px; }
 </style>

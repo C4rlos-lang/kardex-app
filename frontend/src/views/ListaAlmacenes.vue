@@ -72,12 +72,8 @@
               <td>{{ item.stockTotal }}</td>
               <td>
                 <div style="display:flex; gap:6px;">
-                  <button class="btn-etiqueta" @click="verEtiquetas(item)">
-                    🏷️ Etiquetas
-                  </button>
-                  <button class="btn-tallas" @click="verTallas(item)">
-                    👁️ Tallas
-                  </button>
+                  <button class="btn-etiqueta" @click="verEtiquetas(item)">🏷️ Etiquetas</button>
+                  <button class="btn-tallas" @click="verTallas(item)">👁️ Tallas</button>
                 </div>
               </td>
             </tr>
@@ -136,9 +132,8 @@
               <p class="et-nombre">{{ productoEtiquetas?.nombre }}</p>
               <p class="et-sku">{{ productoEtiquetas?.sku }}</p>
               <span class="et-talla">{{ t.talla }}</span>
-              <p class="et-genero">{{ t.genero }}</p>
               <canvas :id="'qr-alm-' + i" class="qr-canvas"></canvas>
-              <p class="et-codigo">{{ productoEtiquetas?.sku }}-T{{ t.talla }}-{{ t.genero?.toUpperCase() }}</p>
+              <p class="et-codigo">{{ productoEtiquetas?.sku }}-T{{ t.talla }}</p>
             </div>
           </div>
         </div>
@@ -229,7 +224,7 @@ export default {
         this.tallasEtiquetas.forEach((t, i) => {
           const canvas = document.getElementById(`qr-alm-${i}`)
           if (canvas) {
-            const texto = `${this.productoEtiquetas.sku} | ${this.productoEtiquetas.nombre} | Talla: ${t.talla} | ${t.genero}`
+            const texto = `${this.productoEtiquetas.sku} | ${this.productoEtiquetas.nombre} | Talla: ${t.talla}`
             QRCode.toCanvas(canvas, texto, { width: 80 })
           }
         })
@@ -238,16 +233,15 @@ export default {
     async imprimir() {
       const QRCode = await import('qrcode')
       const etiquetas = await Promise.all(this.tallasEtiquetas.map(async (t) => {
-        const texto = `${this.productoEtiquetas.sku} | ${this.productoEtiquetas.nombre} | Talla: ${t.talla} | ${t.genero}`
+        const texto = `${this.productoEtiquetas.sku} | ${this.productoEtiquetas.nombre} | Talla: ${t.talla}`
         const qrBase64 = await QRCode.toDataURL(texto, { width: 100, margin: 1 })
         return `
           <div class="etiqueta">
             <p class="et-nombre">${this.productoEtiquetas.nombre}</p>
             <p class="et-sku">${this.productoEtiquetas.sku}</p>
             <span class="et-talla">${t.talla}</span>
-            <p class="et-genero">${t.genero}</p>
             <img src="${qrBase64}" width="80" height="80" />
-            <p class="et-codigo">${this.productoEtiquetas.sku}-T${t.talla}-${t.genero?.toUpperCase()}</p>
+            <p class="et-codigo">${this.productoEtiquetas.sku}-T${t.talla}</p>
           </div>
         `
       }))
@@ -260,7 +254,6 @@ export default {
           .et-nombre { font-size: 12px; font-weight: bold; margin: 0; }
           .et-sku { font-size: 10px; color: #666; margin: 0; }
           .et-talla { font-size: 18px; font-weight: bold; color: #185FA5; background: #E6F1FB; padding: 2px 12px; border-radius: 20px; display: inline-block; }
-          .et-genero { font-size: 10px; color: #666; margin: 0; }
           .et-codigo { font-size: 9px; color: #999; margin: 0; }
           @media print { body { margin: 0; } }
         </style></head>
@@ -339,7 +332,7 @@ tbody tr:hover { background: #D6E4F7; }
   align-items: center; padding: 20px 24px;
   background: #1B3A6B; color: white;
 }
-.panel-header h2 { margin: 0; font-size: 18px; }
+.panel-header h2 { margin: 0; font-size: 18px; color: white; }
 .cerrar {
   background: none; border: none;
   color: white; font-size: 20px; cursor: pointer;
@@ -372,7 +365,6 @@ tbody tr:hover { background: #D6E4F7; }
   color: #185FA5; background: #E6F1FB;
   padding: 2px 12px; border-radius: 20px;
 }
-.et-genero { font-size: 10px; color: #666; }
 .qr-canvas { width: 80px !important; height: 80px !important; }
 .et-codigo { font-size: 9px; color: #999; }
 </style>
