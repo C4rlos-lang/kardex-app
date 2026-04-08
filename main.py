@@ -88,6 +88,16 @@ class DetalleVenta(Base):
 
 Base.metadata.create_all(bind=engine)
 
+class Cliente(Base):
+    __tablename__ = "clientes"
+    id             = Column(Integer, primary_key=True)
+    nombre         = Column(String, nullable=True)
+    telefono       = Column(String, nullable=True)
+    correo         = Column(String, nullable=True)
+    genero         = Column(String, nullable=True)
+    documento      = Column(String, nullable=True)
+    fecha_registro = Column(DateTime, default=datetime.utcnow)
+
 # ── 3. Schemas ────────────────────────────────────────────────────
 class ProductoSchema(BaseModel):
     sku:       str
@@ -131,6 +141,13 @@ class VentaSchema(BaseModel):
     metodo_pago: str
     total:       float
     detalle:     list[DetalleVentaSchema]
+
+class ClienteSchema(BaseModel):
+    nombre:    Optional[str] = None
+    telefono:  Optional[str] = None
+    correo:    Optional[str] = None
+    genero:    Optional[str] = None
+    documento: Optional[str] = None
 
 # ── 4. Sesión ─────────────────────────────────────────────────────
 def get_db():
@@ -299,6 +316,20 @@ def crear_transferencia(t: TransferenciaSchema, db: Session = Depends(get_db)):
 # ── Ventas ────────────────────────────────────────────────────────
 @app.post("/ventas")
 def crear_venta(venta: VentaSchema, db: Session = Depends(get_db)):
+    # Guardar cliente si viene info
+    cliente_id = None
+    if venta.cliente and venta.cliente.nombre:
+        nuevo_cliente = Cliente(
+            nombre=venta.cliente.nombre,
+            telefono=venta.cliente.telefono,
+            correo=venta.cliente.correo,
+            genero=venta.cliente.genero,
+            documento=venta.cliente.documento
+        )
+        db.add(nuevo_cliente)
+        db.flush()
+        cliente_id = nuevo_cliente.id
+
     # Verificar stock
     for item in venta.detalle:
         inv_talla = db.query(InventarioAlmacenTalla).filter(
@@ -317,7 +348,8 @@ def crear_venta(venta: VentaSchema, db: Session = Depends(get_db)):
     nueva_venta = Venta(
         almacen_id=venta.almacen_id,
         metodo_pago=venta.metodo_pago,
-        total=venta.total
+        total=venta.total,
+        cliente_id=cliente_id
     )
     db.add(nueva_venta)
     db.flush()
@@ -331,8 +363,6 @@ def crear_venta(venta: VentaSchema, db: Session = Depends(get_db)):
             cantidad=item.cantidad,
             precio_unitario=item.precio_unitario
         ))
-
-        # Descontar inventario_almacen_tallas
         inv_talla = db.query(InventarioAlmacenTalla).filter(
             InventarioAlmacenTalla.almacen_id == venta.almacen_id,
             InventarioAlmacenTalla.producto_id == item.producto_id,
@@ -340,7 +370,6 @@ def crear_venta(venta: VentaSchema, db: Session = Depends(get_db)):
         ).first()
         inv_talla.unidades -= item.cantidad
 
-        # Descontar inventario_almacen (total)
         inv = db.query(InventarioAlmacen).filter(
             InventarioAlmacen.almacen_id == venta.almacen_id,
             InventarioAlmacen.producto_id == item.producto_id
