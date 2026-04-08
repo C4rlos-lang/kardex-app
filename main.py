@@ -102,6 +102,28 @@ class Cliente(Base):
     documento      = Column(String, nullable=True)
     fecha_registro = Column(DateTime, default=datetime.utcnow)
 
+
+class Arqueo(Base):
+    __tablename__ = "arqueos"
+    id            = Column(Integer, primary_key=True)
+    almacen_id    = Column(Integer)
+    tipo          = Column(String)
+    estado        = Column(String, default="en_proceso")
+    fecha_inicio  = Column(DateTime, default=datetime.utcnow)
+    fecha_cierre  = Column(DateTime, nullable=True)
+    responsable   = Column(String, nullable=True)
+
+class ArqueoDetalle(Base):
+    __tablename__ = "arqueo_detalles"
+    id             = Column(Integer, primary_key=True)
+    arqueo_id      = Column(Integer)
+    producto_id    = Column(Integer)
+    talla          = Column(String)
+    genero         = Column(String)
+    stock_sistema  = Column(Integer)
+    stock_fisico   = Column(Integer)
+    diferencia     = Column(Integer)
+
 # ── 3. Schemas ────────────────────────────────────────────────────
 class ProductoSchema(BaseModel):
     sku:       str
@@ -161,6 +183,18 @@ class ClienteSchema(BaseModel):
             raise ValueError('El correo no es válido')
         return v
 
+class ArqueoDetalleSchema(BaseModel):
+    producto_id:   int
+    talla:         str
+    genero:        str
+    stock_sistema: int
+    stock_fisico:  int
+
+class ArqueoSchema(BaseModel):
+    almacen_id:  int
+    tipo:        str
+    responsable: Optional[str] = None
+    detalles:    list[ArqueoDetalleSchema]
 
 
 # ── 4. Sesión ─────────────────────────────────────────────────────
@@ -727,3 +761,55 @@ def dashboard_almacen(almacen_id: int, dias: int = 30, db: Session = Depends(get
             "total_ventas": total_ventas_count,
         }
     }
+
+
+@app.post("/arqueos")
+def crear_arqueo(arqueo: ArqueoSchema, db: Session = Depends(get_db)):
+    nuevo_arqueo = Arqueo(
+        almacen_id=arqueo.almacen_id,
+        tipo=arqueo.tipo,
+        responsable=arqueo.responsable,
+        estado="completado",
+        fecha_cierre=datetime.utcnow()
+    )
+    db.add(nuevo_arqueo)
+    db.flush()
+
+    for d in arqueo.detalles:
+        diferencia = d.stock_fisico - d.stock_sistema
+        db.add(ArqueoDetalle(
+            arqueo_id=nuevo_arqueo.id,
+            producto_id=d.producto_id,
+            talla=d.talla,
+            genero=d.genero,
+            stock_sistema=d.stock_sistema,
+            stock_fisico=d.stock_fisico,
+            diferencia=diferencia
+        ))
+
+        # Ajustar inventario si hay diferencia
+        if diferencia != 0:
+            inv_talla = db.query(InventarioAlmacenTalla).filter(
+                InventarioAlmacenTalla.almacen_id == arqueo.almacen_id,
+                InventarioAlmacenTalla.producto_id == d.producto_id,
+                InventarioAlmacenTalla.talla == d.talla
+            ).first()
+            if inv_talla:
+                inv_talla.unidades = d.stock_fisico
+
+            inv = db.query(InventarioAlmacen).filter(
+                InventarioAlmacen.almacen_id == arqueo.almacen_id,
+                InventarioAlmacen.producto_id == d.producto_id
+            ).first()
+            if inv:
+                inv.stock += diferencia
+
+    db.commit()
+    db.refresh(nuevo_arqueo)
+    return nuevo_arqueo
+
+@app.get("/arqueos/{almacen_id}")
+def listar_arqueos(almacen_id: int, db: Session = Depends(get_db)):
+    return db.query(Arqueo).filter(
+        Arqueo.almacen_id == almacen_id
+    ).order_by(Arqueo.fecha_inicio.desc()).all()
