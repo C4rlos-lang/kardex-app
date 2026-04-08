@@ -513,52 +513,87 @@ def dashboard(db: Session = Depends(get_db)):
     }
 
 @app.get("/dashboard/{almacen_id}")
-def dashboard_almacen(almacen_id: int, db: Session = Depends(get_db)):
-    from datetime import date
+def dashboard_almacen(almacen_id: int, dias: int = 30, db: Session = Depends(get_db)):
+    from datetime import timedelta
     hoy = datetime.utcnow()
+    fecha_inicio = hoy - timedelta(days=dias)
     mes_actual = hoy.month
     anio_actual = hoy.year
 
     # ── TENDENCIAS ────────────────────────────────────────────────
-    producto_top = db.query(
+    # Producto más vendido por género
+    producto_top_masc = db.query(
         DetalleVenta.producto_id,
         func.sum(DetalleVenta.cantidad).label("total")
     ).join(Venta, Venta.id == DetalleVenta.venta_id).filter(
-        Venta.almacen_id == almacen_id
-    ).group_by(DetalleVenta.producto_id).order_by(func.sum(DetalleVenta.cantidad).desc()).first()
+        Venta.almacen_id == almacen_id,
+        Venta.fecha >= fecha_inicio,
+        DetalleVenta.talla != None
+    ).group_by(DetalleVenta.producto_id).order_by(
+        func.sum(DetalleVenta.cantidad).desc()
+    ).first()
 
     nombre_producto_top = None
-    if producto_top:
-        p = db.query(Producto).filter(Producto.id == producto_top.producto_id).first()
+    if producto_top_masc:
+        p = db.query(Producto).filter(Producto.id == producto_top_masc.producto_id).first()
         nombre_producto_top = p.nombre if p else None
 
-    talla_top = db.query(
+    # Talla más vendida por género
+    talla_top_hombre = db.query(
         DetalleVenta.talla,
         func.sum(DetalleVenta.cantidad).label("total")
-    ).join(Venta, Venta.id == DetalleVenta.venta_id).filter(
-        Venta.almacen_id == almacen_id
-    ).group_by(DetalleVenta.talla).order_by(func.sum(DetalleVenta.cantidad).desc()).first()
+    ).join(Venta, Venta.id == DetalleVenta.venta_id).join(
+        InventarioAlmacenTalla,
+        (InventarioAlmacenTalla.producto_id == DetalleVenta.producto_id) &
+        (InventarioAlmacenTalla.talla == DetalleVenta.talla) &
+        (InventarioAlmacenTalla.almacen_id == almacen_id)
+    ).filter(
+        Venta.almacen_id == almacen_id,
+        Venta.fecha >= fecha_inicio,
+        InventarioAlmacenTalla.genero == 'hombre'
+    ).group_by(DetalleVenta.talla).order_by(
+        func.sum(DetalleVenta.cantidad).desc()
+    ).first()
 
+    talla_top_mujer = db.query(
+        DetalleVenta.talla,
+        func.sum(DetalleVenta.cantidad).label("total")
+    ).join(Venta, Venta.id == DetalleVenta.venta_id).join(
+        InventarioAlmacenTalla,
+        (InventarioAlmacenTalla.producto_id == DetalleVenta.producto_id) &
+        (InventarioAlmacenTalla.talla == DetalleVenta.talla) &
+        (InventarioAlmacenTalla.almacen_id == almacen_id)
+    ).filter(
+        Venta.almacen_id == almacen_id,
+        Venta.fecha >= fecha_inicio,
+        InventarioAlmacenTalla.genero == 'mujer'
+    ).group_by(DetalleVenta.talla).order_by(
+        func.sum(DetalleVenta.cantidad).desc()
+    ).first()
+
+    # Ventas por mes
     ventas_por_mes = db.query(
         extract('month', Venta.fecha).label("mes"),
-        func.sum(Venta.total).label("total")
-    ).filter(Venta.almacen_id == almacen_id).group_by(
-        extract('month', Venta.fecha)
-    ).order_by(extract('month', Venta.fecha)).all()
+        func.sum(Venta.total).label("total"),
+        func.count(Venta.id).label("cantidad")
+    ).filter(
+        Venta.almacen_id == almacen_id,
+        Venta.fecha >= fecha_inicio
+    ).group_by(extract('month', Venta.fecha)).order_by(extract('month', Venta.fecha)).all()
 
+    total_ventas_mes = sum(v.total for v in ventas_por_mes) or 1
+
+    # Ventas por día
     ventas_por_dia = db.query(
         extract('dow', Venta.fecha).label("dia"),
-        func.count(Venta.id).label("total")
-    ).filter(Venta.almacen_id == almacen_id).group_by(
-        extract('dow', Venta.fecha)
-    ).order_by(extract('dow', Venta.fecha)).all()
+        func.count(Venta.id).label("total"),
+        func.sum(Venta.total).label("monto")
+    ).filter(
+        Venta.almacen_id == almacen_id,
+        Venta.fecha >= fecha_inicio
+    ).group_by(extract('dow', Venta.fecha)).order_by(extract('dow', Venta.fecha)).all()
 
-    ventas_por_semana = db.query(
-        extract('week', Venta.fecha).label("semana"),
-        func.sum(Venta.total).label("total")
-    ).filter(Venta.almacen_id == almacen_id).group_by(
-        extract('week', Venta.fecha)
-    ).order_by(extract('week', Venta.fecha)).all()
+    total_ventas_dia = sum(v.total for v in ventas_por_dia) or 1
 
     # ── INVENTARIO ────────────────────────────────────────────────
     total_productos = db.query(func.count(InventarioAlmacen.id)).filter(
@@ -570,10 +605,21 @@ def dashboard_almacen(almacen_id: int, db: Session = Depends(get_db)):
         InventarioAlmacen.stock < 5
     ).scalar()
 
+    # Costo total del inventario
+    inventarios = db.query(InventarioAlmacen).filter(
+        InventarioAlmacen.almacen_id == almacen_id
+    ).all()
+    costo_inventario = 0
+    for inv in inventarios:
+        producto = db.query(Producto).filter(Producto.id == inv.producto_id).first()
+        if producto:
+            costo_inventario += (producto.precio or 0) * inv.stock
+
     # ── CLIENTES ──────────────────────────────────────────────────
     clientes_almacen = db.query(Venta.cliente_id).filter(
         Venta.almacen_id == almacen_id,
-        Venta.cliente_id != None
+        Venta.cliente_id != None,
+        Venta.fecha >= fecha_inicio
     ).distinct().all()
     ids_clientes = [c.cliente_id for c in clientes_almacen]
 
@@ -599,47 +645,69 @@ def dashboard_almacen(almacen_id: int, db: Session = Depends(get_db)):
         func.count(Venta.id).label("compras")
     ).filter(
         Venta.almacen_id == almacen_id,
-        Venta.cliente_id != None
+        Venta.cliente_id != None,
+        Venta.fecha >= fecha_inicio
     ).group_by(Venta.cliente_id).all()
 
     clientes_recurrentes = len([r for r in recurrencia if r.compras > 1])
     promedio_compras = round(sum(r.compras for r in recurrencia) / len(recurrencia), 1) if recurrencia else 0
 
     # ── FINANCIERO ────────────────────────────────────────────────
+    ventas_periodo = db.query(func.sum(Venta.total)).filter(
+        Venta.almacen_id == almacen_id,
+        Venta.fecha >= fecha_inicio
+    ).scalar() or 0
+
     ventas_mes = db.query(func.sum(Venta.total)).filter(
         Venta.almacen_id == almacen_id,
         extract('month', Venta.fecha) == mes_actual,
         extract('year', Venta.fecha) == anio_actual
     ).scalar() or 0
 
+    # Costo de ventas (precio de compra * cantidad vendida)
+    detalle_ventas = db.query(DetalleVenta).join(
+        Venta, Venta.id == DetalleVenta.venta_id
+    ).filter(
+        Venta.almacen_id == almacen_id,
+        Venta.fecha >= fecha_inicio
+    ).all()
+
+    costo_ventas = 0
+    for d in detalle_ventas:
+        producto = db.query(Producto).filter(Producto.id == d.producto_id).first()
+        if producto:
+            costo_ventas += (producto.precio or 0) * d.cantidad
+
+    ganancia = ventas_periodo - costo_ventas
+    margen = round((ganancia / ventas_periodo * 100), 1) if ventas_periodo > 0 else 0
+
     metodo_top = db.query(
         Venta.metodo_pago,
         func.count(Venta.id).label("total")
-    ).filter(Venta.almacen_id == almacen_id).group_by(
-        Venta.metodo_pago
-    ).order_by(func.count(Venta.id).desc()).first()
+    ).filter(
+        Venta.almacen_id == almacen_id,
+        Venta.fecha >= fecha_inicio
+    ).group_by(Venta.metodo_pago).order_by(func.count(Venta.id).desc()).first()
 
-    total_ventas = db.query(func.count(Venta.id)).filter(
-        Venta.almacen_id == almacen_id
+    total_ventas_count = db.query(func.count(Venta.id)).filter(
+        Venta.almacen_id == almacen_id,
+        Venta.fecha >= fecha_inicio
     ).scalar()
 
-    total_ingresos = db.query(func.sum(Venta.total)).filter(
-        Venta.almacen_id == almacen_id
-    ).scalar() or 0
-
-    ticket_promedio = round(total_ingresos / total_ventas, 0) if total_ventas else 0
+    ticket_promedio = round(ventas_periodo / total_ventas_count, 0) if total_ventas_count else 0
 
     return {
         "tendencias": {
             "producto_top": nombre_producto_top,
-            "talla_top": talla_top.talla if talla_top else None,
-            "ventas_por_mes": [{"mes": int(v.mes), "total": float(v.total)} for v in ventas_por_mes],
-            "ventas_por_dia": [{"dia": int(v.dia), "total": int(v.total)} for v in ventas_por_dia],
-            "ventas_por_semana": [{"semana": int(v.semana), "total": float(v.total)} for v in ventas_por_semana],
+            "talla_top_hombre": talla_top_hombre.talla if talla_top_hombre else None,
+            "talla_top_mujer": talla_top_mujer.talla if talla_top_mujer else None,
+            "ventas_por_mes": [{"mes": int(v.mes), "total": float(v.total), "porcentaje": round(float(v.total) / total_ventas_mes * 100, 1)} for v in ventas_por_mes],
+            "ventas_por_dia": [{"dia": int(v.dia), "total": int(v.total), "monto": float(v.monto), "porcentaje": round(float(v.monto) / total_ventas_dia * 100, 1)} for v in ventas_por_dia],
         },
         "inventario": {
             "total_productos": total_productos,
             "stock_bajo": stock_bajo,
+            "costo_inventario": round(costo_inventario, 0),
         },
         "clientes": {
             "total_clientes": total_clientes,
@@ -649,9 +717,13 @@ def dashboard_almacen(almacen_id: int, db: Session = Depends(get_db)):
             "promedio_compras": promedio_compras,
         },
         "financiero": {
+            "ventas_periodo": round(ventas_periodo, 0),
             "ventas_mes": round(ventas_mes, 0),
+            "costo_ventas": round(costo_ventas, 0),
+            "ganancia": round(ganancia, 0),
+            "margen": margen,
             "metodo_top": metodo_top.metodo_pago if metodo_top else None,
             "ticket_promedio": ticket_promedio,
-            "total_ventas": total_ventas,
+            "total_ventas": total_ventas_count,
         }
     }
