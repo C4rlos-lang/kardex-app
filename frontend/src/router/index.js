@@ -13,6 +13,7 @@ const routes = [
   { path: '/almacenes', component: Almacenes },
   { path: '/lista-almacenes', component: ListaAlmacenes },
   { path: '/pos', component: POS },
+  { path: '/dashboard', component: Dashboard },
 ]
 
 const router = createRouter({
@@ -24,4 +25,3 @@ export default router
 
 
 // En routes agrega:
-{ path: '/dashboard', component: Dashboard },
