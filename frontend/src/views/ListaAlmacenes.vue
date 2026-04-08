@@ -155,13 +155,37 @@
       </div>
       <div class="panel-body" v-else-if="dashboardData">
 
+        <!-- Filtros de tiempo -->
+        <div class="filtros-wrap">
+          <button
+            v-for="f in filtros" :key="f.dias"
+            class="filtro-btn"
+            :class="{ activo: filtroDias === f.dias }"
+            @click="filtroDias = f.dias; cargarDashboard()"
+          >
+            {{ f.label }}
+          </button>
+        </div>
+
         <!-- Financiero -->
         <div class="dash-seccion">
           <p class="dash-titulo">💰 Financiero</p>
           <div class="dash-cards">
             <div class="dash-card verde">
-              <p class="dash-label">Ventas este mes</p>
-              <p class="dash-valor">${{ Number(dashboardData.financiero.ventas_mes).toLocaleString('es-CO') }}</p>
+              <p class="dash-label">Ingresos del período</p>
+              <p class="dash-valor">${{ formatNum(dashboardData.financiero.ventas_periodo) }}</p>
+            </div>
+            <div class="dash-card naranja-card">
+              <p class="dash-label">Costo de ventas</p>
+              <p class="dash-valor naranja">${{ formatNum(dashboardData.financiero.costo_ventas) }}</p>
+            </div>
+            <div class="dash-card azul-card">
+              <p class="dash-label">Ganancia</p>
+              <p class="dash-valor azul">${{ formatNum(dashboardData.financiero.ganancia) }}</p>
+            </div>
+            <div class="dash-card">
+              <p class="dash-label">Margen</p>
+              <p class="dash-valor">{{ dashboardData.financiero.margen }}%</p>
             </div>
             <div class="dash-card">
               <p class="dash-label">Total ventas</p>
@@ -169,7 +193,7 @@
             </div>
             <div class="dash-card">
               <p class="dash-label">Ticket promedio</p>
-              <p class="dash-valor">${{ Number(dashboardData.financiero.ticket_promedio).toLocaleString('es-CO') }}</p>
+              <p class="dash-valor">${{ formatNum(dashboardData.financiero.ticket_promedio) }}</p>
             </div>
             <div class="dash-card">
               <p class="dash-label">Método más usado</p>
@@ -187,27 +211,40 @@
               <p class="dash-valor">{{ dashboardData.tendencias.producto_top || 'Sin datos' }}</p>
             </div>
             <div class="dash-card">
-              <p class="dash-label">Talla más vendida</p>
-              <p class="dash-valor">{{ dashboardData.tendencias.talla_top || 'Sin datos' }}</p>
+              <p class="dash-label">Talla top — Hombre</p>
+              <p class="dash-valor">{{ dashboardData.tendencias.talla_top_hombre || 'Sin datos' }}</p>
+            </div>
+            <div class="dash-card">
+              <p class="dash-label">Talla top — Mujer</p>
+              <p class="dash-valor">{{ dashboardData.tendencias.talla_top_mujer || 'Sin datos' }}</p>
             </div>
           </div>
+
           <p class="dash-subtitulo">Ventas por mes</p>
-          <div class="barras" v-if="dashboardData.tendencias.ventas_por_mes.length">
-            <div v-for="v in dashboardData.tendencias.ventas_por_mes" :key="v.mes" class="barra-wrap">
-              <div class="barra" :style="{ height: alturaBarra(v.total, maxMes) + 'px' }"></div>
-              <p class="barra-label">{{ nombreMes(v.mes) }}</p>
+          <div class="barras-container" v-if="dashboardData.tendencias.ventas_por_mes.length">
+            <div class="barras">
+              <div v-for="v in dashboardData.tendencias.ventas_por_mes" :key="v.mes" class="barra-wrap">
+                <p class="barra-valor-top">${{ formatNum(v.total) }}</p>
+                <p class="barra-porcentaje">{{ v.porcentaje }}%</p>
+                <div class="barra" :style="{ height: alturaBarra(v.total, maxMes) + 'px' }"></div>
+                <p class="barra-label">{{ nombreMes(v.mes) }}</p>
+              </div>
             </div>
           </div>
-          <p v-else class="sin-datos">Sin ventas registradas</p>
+          <p v-else class="sin-datos">Sin ventas en este período</p>
 
           <p class="dash-subtitulo">Ventas por día de la semana</p>
-          <div class="barras" v-if="dashboardData.tendencias.ventas_por_dia.length">
-            <div v-for="v in dashboardData.tendencias.ventas_por_dia" :key="v.dia" class="barra-wrap">
-              <div class="barra barra-dia" :style="{ height: alturaBarra(v.total, maxDia) + 'px' }"></div>
-              <p class="barra-label">{{ nombreDia(v.dia) }}</p>
+          <div class="barras-container" v-if="dashboardData.tendencias.ventas_por_dia.length">
+            <div class="barras">
+              <div v-for="v in dashboardData.tendencias.ventas_por_dia" :key="v.dia" class="barra-wrap">
+                <p class="barra-valor-top">{{ v.total }}</p>
+                <p class="barra-porcentaje">{{ v.porcentaje }}%</p>
+                <div class="barra barra-dia" :style="{ height: alturaBarra(v.total, maxDia) + 'px' }"></div>
+                <p class="barra-label">{{ nombreDia(v.dia) }}</p>
+              </div>
             </div>
           </div>
-          <p v-else class="sin-datos">Sin ventas registradas</p>
+          <p v-else class="sin-datos">Sin ventas en este período</p>
         </div>
 
         <!-- Inventario -->
@@ -222,6 +259,10 @@
               <p class="dash-label">⚠️ Stock bajo</p>
               <p class="dash-valor naranja">{{ dashboardData.inventario.stock_bajo }}</p>
               <p class="dash-sub">menos de 5 unidades</p>
+            </div>
+            <div class="dash-card">
+              <p class="dash-label">Costo del inventario</p>
+              <p class="dash-valor">${{ formatNum(dashboardData.inventario.costo_inventario) }}</p>
             </div>
           </div>
         </div>
@@ -282,7 +323,14 @@ export default {
       panelDashboardAbierto: false,
       almacenDashboard: null,
       dashboardData: null,
-      cargandoDashboard: false
+      cargandoDashboard: false,
+      filtroDias: 30,
+      filtros: [
+        { label: '7 días', dias: 7 },
+        { label: '30 días', dias: 30 },
+        { label: '6 meses', dias: 180 },
+        { label: '1 año', dias: 365 },
+      ]
     }
   },
   computed: {
@@ -297,11 +345,11 @@ export default {
       return Object.values(mapa)
     },
     maxMes() {
-      if (!this.dashboardData) return 1
+      if (!this.dashboardData || !this.dashboardData.tendencias.ventas_por_mes.length) return 1
       return Math.max(...this.dashboardData.tendencias.ventas_por_mes.map(v => v.total), 1)
     },
     maxDia() {
-      if (!this.dashboardData) return 1
+      if (!this.dashboardData || !this.dashboardData.tendencias.ventas_por_dia.length) return 1
       return Math.max(...this.dashboardData.tendencias.ventas_por_dia.map(v => v.total), 1)
     }
   },
@@ -350,10 +398,14 @@ export default {
     async verDashboard(almacen) {
       this.almacenDashboard = almacen
       this.panelDashboardAbierto = true
+      this.filtroDias = 30
+      await this.cargarDashboard()
+    },
+    async cargarDashboard() {
       this.cargandoDashboard = true
       try {
         const { data } = await axios.get(
-          `https://kardex-app.onrender.com/dashboard/${almacen.id}`
+          `https://kardex-app.onrender.com/dashboard/${this.almacenDashboard.id}?dias=${this.filtroDias}`
         )
         this.dashboardData = data
       } catch (error) {
@@ -410,6 +462,9 @@ export default {
     },
     alturaBarra(valor, max) {
       return Math.max((valor / max) * 100, 4)
+    },
+    formatNum(n) {
+      return Number(n).toLocaleString('es-CO')
     },
     nombreMes(n) {
       const meses = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic']
@@ -527,6 +582,20 @@ tbody tr:hover { background: #D6E4F7; }
 }
 .qr-canvas { width: 80px !important; height: 80px !important; }
 .et-codigo { font-size: 9px; color: #999; }
+.filtros-wrap {
+  display: flex; gap: 8px;
+  margin-bottom: 20px; flex-wrap: wrap;
+}
+.filtro-btn {
+  padding: 6px 14px;
+  border: 1px solid #ccc;
+  background: white; border-radius: 20px;
+  cursor: pointer; font-size: 13px; color: #555;
+}
+.filtro-btn.activo {
+  background: #1B3A6B; color: white;
+  border-color: #1B3A6B;
+}
 .dash-seccion {
   margin-bottom: 24px;
   padding-bottom: 24px;
@@ -541,22 +610,29 @@ tbody tr:hover { background: #D6E4F7; }
 }
 .dash-card.verde { background: #d4edda; }
 .dash-card.alerta { background: #fff3cd; }
+.dash-card.naranja-card { background: #fff3cd; }
+.dash-card.azul-card { background: #D6E4F7; }
 .dash-label { font-size: 11px; color: #888; margin-bottom: 6px; }
 .dash-valor { font-size: 20px; font-weight: 600; color: #1B3A6B; }
 .dash-valor.naranja { color: #D35400; }
+.dash-valor.azul { color: #2E5FA3; }
 .dash-sub { font-size: 10px; color: #888; margin-top: 4px; }
+.barras-container { overflow-x: auto; }
 .barras {
   display: flex; align-items: flex-end;
-  gap: 8px; height: 120px;
+  gap: 8px; height: 160px;
   border-bottom: 2px solid #eee;
   padding-bottom: 4px;
+  min-width: 300px;
 }
-.barra-wrap { display: flex; flex-direction: column; align-items: center; gap: 2px; flex: 1; }
+.barra-wrap { display: flex; flex-direction: column; align-items: center; gap: 2px; flex: 1; min-width: 40px; }
 .barra {
   width: 100%; background: #2E5FA3;
   border-radius: 4px 4px 0 0; min-height: 4px;
 }
 .barra-dia { background: #1E7E50; }
 .barra-label { font-size: 10px; color: #888; }
+.barra-valor-top { font-size: 9px; color: #555; text-align: center; font-weight: 500; }
+.barra-porcentaje { font-size: 9px; color: #888; text-align: center; }
 .sin-datos { font-size: 13px; color: #888; margin-top: 8px; }
 </style>
