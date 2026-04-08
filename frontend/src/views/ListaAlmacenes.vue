@@ -27,12 +27,10 @@
             </span>
           </td>
           <td>
-            <button class="btn-ver" @click="verInventario(almacen)">
-              👁️ Ver inventario
-            </button>
-            <button class="btn-dashboard" @click="verDashboard(almacen)">
-            📊 Dashboard
-            </button>
+            <div style="display:flex; gap:6px;">
+              <button class="btn-ver" @click="verInventario(almacen)">👁️ Ver inventario</button>
+              <button class="btn-dashboard" @click="verDashboard(almacen)">📊 Dashboard</button>
+            </div>
           </td>
         </tr>
       </tbody>
@@ -143,6 +141,121 @@
       </div>
     </div>
 
+    <!-- Overlay dashboard -->
+    <div class="overlay" v-if="panelDashboardAbierto" @click.self="panelDashboardAbierto = false"></div>
+
+    <!-- Panel dashboard -->
+    <div class="panel panel-wide" :class="{ abierto: panelDashboardAbierto }">
+      <div class="panel-header">
+        <h2>📊 Dashboard — {{ almacenDashboard?.nombre }}</h2>
+        <button class="cerrar" @click="panelDashboardAbierto = false">✕</button>
+      </div>
+      <div class="panel-body" v-if="cargandoDashboard">
+        <p>Cargando dashboard...</p>
+      </div>
+      <div class="panel-body" v-else-if="dashboardData">
+
+        <!-- Financiero -->
+        <div class="dash-seccion">
+          <p class="dash-titulo">💰 Financiero</p>
+          <div class="dash-cards">
+            <div class="dash-card verde">
+              <p class="dash-label">Ventas este mes</p>
+              <p class="dash-valor">${{ Number(dashboardData.financiero.ventas_mes).toLocaleString('es-CO') }}</p>
+            </div>
+            <div class="dash-card">
+              <p class="dash-label">Total ventas</p>
+              <p class="dash-valor">{{ dashboardData.financiero.total_ventas }}</p>
+            </div>
+            <div class="dash-card">
+              <p class="dash-label">Ticket promedio</p>
+              <p class="dash-valor">${{ Number(dashboardData.financiero.ticket_promedio).toLocaleString('es-CO') }}</p>
+            </div>
+            <div class="dash-card">
+              <p class="dash-label">Método más usado</p>
+              <p class="dash-valor">{{ dashboardData.financiero.metodo_top || 'Sin datos' }}</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Tendencias -->
+        <div class="dash-seccion">
+          <p class="dash-titulo">📈 Tendencias</p>
+          <div class="dash-cards">
+            <div class="dash-card">
+              <p class="dash-label">Producto más vendido</p>
+              <p class="dash-valor">{{ dashboardData.tendencias.producto_top || 'Sin datos' }}</p>
+            </div>
+            <div class="dash-card">
+              <p class="dash-label">Talla más vendida</p>
+              <p class="dash-valor">{{ dashboardData.tendencias.talla_top || 'Sin datos' }}</p>
+            </div>
+          </div>
+          <p class="dash-subtitulo">Ventas por mes</p>
+          <div class="barras" v-if="dashboardData.tendencias.ventas_por_mes.length">
+            <div v-for="v in dashboardData.tendencias.ventas_por_mes" :key="v.mes" class="barra-wrap">
+              <div class="barra" :style="{ height: alturaBarra(v.total, maxMes) + 'px' }"></div>
+              <p class="barra-label">{{ nombreMes(v.mes) }}</p>
+            </div>
+          </div>
+          <p v-else class="sin-datos">Sin ventas registradas</p>
+
+          <p class="dash-subtitulo">Ventas por día de la semana</p>
+          <div class="barras" v-if="dashboardData.tendencias.ventas_por_dia.length">
+            <div v-for="v in dashboardData.tendencias.ventas_por_dia" :key="v.dia" class="barra-wrap">
+              <div class="barra barra-dia" :style="{ height: alturaBarra(v.total, maxDia) + 'px' }"></div>
+              <p class="barra-label">{{ nombreDia(v.dia) }}</p>
+            </div>
+          </div>
+          <p v-else class="sin-datos">Sin ventas registradas</p>
+        </div>
+
+        <!-- Inventario -->
+        <div class="dash-seccion">
+          <p class="dash-titulo">📦 Inventario</p>
+          <div class="dash-cards">
+            <div class="dash-card">
+              <p class="dash-label">Total productos</p>
+              <p class="dash-valor">{{ dashboardData.inventario.total_productos }}</p>
+            </div>
+            <div class="dash-card alerta">
+              <p class="dash-label">⚠️ Stock bajo</p>
+              <p class="dash-valor naranja">{{ dashboardData.inventario.stock_bajo }}</p>
+              <p class="dash-sub">menos de 5 unidades</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Clientes -->
+        <div class="dash-seccion">
+          <p class="dash-titulo">👥 Clientes</p>
+          <div class="dash-cards">
+            <div class="dash-card">
+              <p class="dash-label">Total clientes</p>
+              <p class="dash-valor">{{ dashboardData.clientes.total_clientes }}</p>
+            </div>
+            <div class="dash-card">
+              <p class="dash-label">Nuevos este mes</p>
+              <p class="dash-valor">{{ dashboardData.clientes.clientes_nuevos_mes }}</p>
+            </div>
+            <div class="dash-card">
+              <p class="dash-label">Género más frecuente</p>
+              <p class="dash-valor">{{ dashboardData.clientes.genero_top || 'Sin datos' }}</p>
+            </div>
+            <div class="dash-card">
+              <p class="dash-label">Clientes recurrentes</p>
+              <p class="dash-valor">{{ dashboardData.clientes.clientes_recurrentes }}</p>
+            </div>
+            <div class="dash-card">
+              <p class="dash-label">Promedio de compras</p>
+              <p class="dash-valor">{{ dashboardData.clientes.promedio_compras }}x</p>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
   </div>
 </template>
 
@@ -165,7 +278,11 @@ export default {
       panelEtiquetasAbierto: false,
       productoEtiquetas: null,
       tallasEtiquetas: [],
-      cargandoEtiquetas: false
+      cargandoEtiquetas: false,
+      panelDashboardAbierto: false,
+      almacenDashboard: null,
+      dashboardData: null,
+      cargandoDashboard: false
     }
   },
   computed: {
@@ -178,6 +295,14 @@ export default {
         mapa[item.id].stockTotal += item.stock
       })
       return Object.values(mapa)
+    },
+    maxMes() {
+      if (!this.dashboardData) return 1
+      return Math.max(...this.dashboardData.tendencias.ventas_por_mes.map(v => v.total), 1)
+    },
+    maxDia() {
+      if (!this.dashboardData) return 1
+      return Math.max(...this.dashboardData.tendencias.ventas_por_dia.map(v => v.total), 1)
     }
   },
   methods: {
@@ -221,6 +346,20 @@ export default {
         console.error('Error', error)
       }
       this.cargandoEtiquetas = false
+    },
+    async verDashboard(almacen) {
+      this.almacenDashboard = almacen
+      this.panelDashboardAbierto = true
+      this.cargandoDashboard = true
+      try {
+        const { data } = await axios.get(
+          `https://kardex-app.onrender.com/dashboard/${almacen.id}`
+        )
+        this.dashboardData = data
+      } catch (error) {
+        console.error('Error cargando dashboard', error)
+      }
+      this.cargandoDashboard = false
     },
     generarQRs() {
       import('qrcode').then(QRCode => {
@@ -268,6 +407,17 @@ export default {
       const url = URL.createObjectURL(blob)
       const ventana = window.open(url, '_blank')
       if (!ventana) alert('Por favor permite las ventanas emergentes para imprimir')
+    },
+    alturaBarra(valor, max) {
+      return Math.max((valor / max) * 100, 4)
+    },
+    nombreMes(n) {
+      const meses = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic']
+      return meses[n - 1] || n
+    },
+    nombreDia(n) {
+      const dias = ['Dom','Lun','Mar','Mié','Jue','Vie','Sáb']
+      return dias[n] || n
     }
   },
   async mounted() {
@@ -306,6 +456,12 @@ tbody tr:hover { background: #D6E4F7; }
   color: white; border: none;
   border-radius: 6px; cursor: pointer; font-size: 13px;
 }
+.btn-dashboard {
+  padding: 6px 12px; background: #1B3A6B;
+  color: white; border: none;
+  border-radius: 6px; cursor: pointer; font-size: 13px;
+}
+.btn-dashboard:hover { background: #2E5FA3; }
 .btn-etiqueta {
   padding: 5px 10px; background: #1E7E50;
   color: white; border: none;
@@ -329,6 +485,7 @@ tbody tr:hover { background: #D6E4F7; }
   z-index: 101; transition: right 0.3s ease;
   display: flex; flex-direction: column;
 }
+.panel-wide { width: 850px; right: -850px; }
 .panel.abierto { right: 0; }
 .panel-header {
   display: flex; justify-content: space-between;
@@ -370,4 +527,36 @@ tbody tr:hover { background: #D6E4F7; }
 }
 .qr-canvas { width: 80px !important; height: 80px !important; }
 .et-codigo { font-size: 9px; color: #999; }
+.dash-seccion {
+  margin-bottom: 24px;
+  padding-bottom: 24px;
+  border-bottom: 1px solid #eee;
+}
+.dash-titulo { font-size: 15px; font-weight: 600; color: #1B3A6B; margin-bottom: 12px; }
+.dash-subtitulo { font-size: 13px; color: #555; margin: 16px 0 8px; font-weight: 500; }
+.dash-cards { display: flex; flex-wrap: wrap; gap: 12px; }
+.dash-card {
+  background: #F2F4F7; border-radius: 8px;
+  padding: 12px 16px; min-width: 120px; flex: 1;
+}
+.dash-card.verde { background: #d4edda; }
+.dash-card.alerta { background: #fff3cd; }
+.dash-label { font-size: 11px; color: #888; margin-bottom: 6px; }
+.dash-valor { font-size: 20px; font-weight: 600; color: #1B3A6B; }
+.dash-valor.naranja { color: #D35400; }
+.dash-sub { font-size: 10px; color: #888; margin-top: 4px; }
+.barras {
+  display: flex; align-items: flex-end;
+  gap: 8px; height: 120px;
+  border-bottom: 2px solid #eee;
+  padding-bottom: 4px;
+}
+.barra-wrap { display: flex; flex-direction: column; align-items: center; gap: 2px; flex: 1; }
+.barra {
+  width: 100%; background: #2E5FA3;
+  border-radius: 4px 4px 0 0; min-height: 4px;
+}
+.barra-dia { background: #1E7E50; }
+.barra-label { font-size: 10px; color: #888; }
+.sin-datos { font-size: 13px; color: #888; margin-top: 8px; }
 </style>
