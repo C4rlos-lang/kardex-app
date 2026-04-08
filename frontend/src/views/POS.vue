@@ -86,6 +86,7 @@
           <h2>Carrito</h2>
           <p v-if="carrito.length === 0" class="carrito-vacio">Sin productos</p>
           <div v-else>
+            
             <div class="carrito-item" v-for="(item, i) in carrito" :key="i">
               <div class="item-info">
                 <p class="item-nombre">{{ item.nombre }}</p>
@@ -97,7 +98,26 @@
                 <button @click="incrementar(i)">+</button>
                 <button class="btn-eliminar" @click="eliminarItem(i)">✕</button>
               </div>
-              <p class="item-precio">${{ (item.precio * item.cantidad).toLocaleString() }}</p>
+
+              <!-- Precio de venta editable -->
+              <div class="precio-venta-wrap">
+                <label class="precio-label">Precio de venta</label>
+                <input
+                  v-model.number="item.precio"
+                  type="number"
+                  class="precio-input"
+                  placeholder="Ingresa el precio"
+                />
+                <div class="precios-rapidos">
+                  <button @click="item.precio = 100000">$100k</button>
+                  <button @click="item.precio = 150000">$150k</button>
+                  <button @click="item.precio = 200000">$200k</button>
+                </div>
+              </div>
+
+              <p class="item-precio">
+                Subtotal: ${{ (item.precio * item.cantidad).toLocaleString('es-CO') }}
+              </p>
             </div>
 
             <div class="total-wrap">
@@ -588,4 +608,43 @@ label { font-size: 13px; color: #555; display: block; margin-bottom: 8px; }
 .exito-icon { font-size: 64px; margin-bottom: 24px; }
 .exito { color: #1E7E50; margin-top: 12px; }
 .error { color: red; margin-top: 12px; }
+
+.precio-venta-wrap {
+  margin-top: 8px;
+  padding: 8px;
+  background: #F2F4F7;
+  border-radius: 6px;
+}
+.precio-label {
+  font-size: 11px;
+  color: #888;
+  display: block;
+  margin-bottom: 4px;
+}
+.precio-input {
+  width: 100%;
+  padding: 6px 10px;
+  border: 1px solid #ccc;
+  border-radius: 6px;
+  font-size: 14px;
+  margin-bottom: 6px;
+}
+.precios-rapidos {
+  display: flex;
+  gap: 6px;
+}
+.precios-rapidos button {
+  flex: 1;
+  padding: 4px 6px;
+  background: white;
+  border: 1px solid #2E5FA3;
+  color: #2E5FA3;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 11px;
+  font-weight: 500;
+}
+.precios-rapidos button:hover {
+  background: #D6E4F7;
+}
 </style>
