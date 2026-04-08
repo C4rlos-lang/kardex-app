@@ -36,18 +36,11 @@
             placeholder="🔍 Buscar por nombre o SKU..."
             class="buscador"
           />
-
-          <!-- Botón QR -->
-          <button class="btn-qr" @click="activarQR">
-            📷 Escanear QR
-          </button>
-
-          <!-- Lector QR -->
+          <button class="btn-qr" @click="activarQR">📷 Escanear QR</button>
           <div v-if="escaneando">
             <div id="lector-qr"></div>
             <button class="btn-cerrar-qr" @click="detenerQR">✕ Cerrar escáner</button>
           </div>
-
           <p v-if="cargandoProductos">Cargando...</p>
           <div class="lista-productos">
             <div
@@ -120,28 +113,93 @@
                   class="metodo-btn"
                   :class="{ activo: metodoPago === m }"
                   @click="metodoPago = m"
-                >
-                  {{ m }}
-                </div>
+                >{{ m }}</div>
               </div>
             </div>
 
             <button
               class="btn-venta"
-              @click="confirmarVenta"
-              :disabled="!metodoPago || cargandoVenta"
+              @click="mostrarModalVenta = true"
+              :disabled="!metodoPago || carrito.length === 0"
             >
-              {{ cargandoVenta ? 'Procesando...' : '✅ Confirmar venta' }}
+              ✅ Confirmar venta
             </button>
-
-            <p v-if="mensajeVenta" :class="exitoVenta ? 'exito' : 'error'">
-              {{ mensajeVenta }}
-            </p>
           </div>
         </div>
 
       </div>
     </div>
+
+    <!-- Modal confirmación y datos cliente -->
+    <div class="modal-overlay" v-if="mostrarModalVenta">
+      <div class="modal">
+        <h2>✅ Confirmar Venta</h2>
+        <p class="modal-total">Total: <strong>${{ totalCarrito.toLocaleString() }}</strong></p>
+        <p class="modal-metodo">Método: {{ metodoPago }}</p>
+
+        <div class="modal-seccion">
+          <p class="modal-label">Datos del cliente <span class="opcional">(opcional)</span></p>
+
+          <div class="campo">
+            <label>Nombre</label>
+            <input v-model="cliente.nombre" type="text" placeholder="Nombre completo" />
+          </div>
+          <div class="campo">
+            <label>Documento</label>
+            <input v-model="cliente.documento" type="text" placeholder="Número de documento" />
+          </div>
+          <div class="campo">
+            <label>Teléfono (máx. 10 dígitos)</label>
+            <input
+              v-model="cliente.telefono"
+              type="tel"
+              placeholder="Ej: 3001234567"
+              maxlength="10"
+              @input="cliente.telefono = cliente.telefono.replace(/\D/g, '').slice(0, 10)"
+            />
+          </div>
+          <div class="campo">
+            <label>Correo</label>
+            <input v-model="cliente.correo" type="email" placeholder="correo@ejemplo.com" />
+          </div>
+          <div class="campo">
+            <label>Género</label>
+            <select v-model="cliente.genero">
+              <option value="">Selecciona...</option>
+              <option value="Masculino">Masculino</option>
+              <option value="Femenino">Femenino</option>
+              <option value="No binario">No binario</option>
+              <option value="Prefiero no decir">Prefiero no decir</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="modal-botones">
+          <button class="btn-cancelar" @click="mostrarModalVenta = false">Cancelar</button>
+          <button class="btn-confirmar-modal" @click="confirmarVenta" :disabled="cargandoVenta">
+            {{ cargandoVenta ? 'Procesando...' : '✅ Confirmar' }}
+          </button>
+        </div>
+
+        <p v-if="mensajeVenta" :class="exitoVenta ? 'exito' : 'error'">
+          {{ mensajeVenta }}
+        </p>
+      </div>
+    </div>
+
+    <!-- Modal éxito -->
+    <div class="modal-overlay" v-if="ventaConfirmada">
+      <div class="modal modal-exito">
+        <div class="exito-icon">🎉</div>
+        <h2>¡Venta registrada!</h2>
+        <p class="modal-total">Total cobrado: <strong>${{ ultimoTotal.toLocaleString() }}</strong></p>
+        <p class="modal-metodo">Método: {{ ultimoMetodo }}</p>
+        <button class="btn-confirmar-modal" @click="ventaConfirmada = false">
+          Aceptar
+        </button>
+      </div>
+    </div>
+
   </div>
 </template>
 
@@ -168,7 +226,18 @@ export default {
       mensajeVenta: '',
       exitoVenta: false,
       escaneando: false,
-      scannerInstancia: null
+      scannerInstancia: null,
+      cliente: {
+        nombre: '',
+        telefono: '',
+        correo: '',
+        genero: '',
+        documento: ''
+      },
+      mostrarModalVenta: false,
+      ventaConfirmada: false,
+      ultimoTotal: 0,
+      ultimoMetodo: ''
     }
   },
   computed: {
@@ -292,9 +361,7 @@ export default {
         alert(`Producto con SKU ${sku} no encontrado en este almacén`)
         return
       }
-
       await this.seleccionarProducto(producto)
-
       const tallaEncontrada = this.tallas.find(
         t => t.talla === talla && t.genero === genero
       )
@@ -302,7 +369,6 @@ export default {
         alert(`Talla ${talla} no disponible para este producto`)
         return
       }
-
       this.agregarAlCarrito(tallaEncontrada)
     },
     async confirmarVenta() {
@@ -317,17 +383,21 @@ export default {
             talla: item.talla,
             cantidad: item.cantidad,
             precio_unitario: item.precio
-          }))
+          })),
+          cliente: this.cliente
         })
-        this.mensajeVenta = '¡Venta registrada exitosamente! 🎉'
-        this.exitoVenta = true
+        this.ultimoTotal = this.totalCarrito
+        this.ultimoMetodo = this.metodoPago
+        this.mostrarModalVenta = false
+        this.ventaConfirmada = true
         this.carrito = []
         this.metodoPago = ''
         this.productoActivo = null
         this.tallas = []
+        this.cliente = { nombre: '', telefono: '', correo: '', genero: '', documento: '' }
+        this.mensajeVenta = ''
         const { data } = await axios.get(`${API}/almacenes/${this.almacenSeleccionado.id}/inventario`)
         this.productos = data
-        setTimeout(() => { this.mensajeVenta = '' }, 3000)
       } catch (error) {
         this.mensajeVenta = error.response?.data?.detail || 'Error al procesar la venta'
         this.exitoVenta = false
@@ -449,6 +519,47 @@ label { font-size: 13px; color: #555; display: block; margin-bottom: 8px; }
   cursor: pointer; font-size: 15px;
 }
 .btn-venta:disabled { background: #ccc; }
+.modal-overlay {
+  position: fixed; top: 0; left: 0;
+  width: 100%; height: 100%;
+  background: rgba(0,0,0,0.5);
+  z-index: 200;
+  display: flex; align-items: center; justify-content: center;
+}
+.modal {
+  background: white; border-radius: 12px;
+  padding: 32px; width: 480px;
+  max-height: 90vh; overflow-y: auto;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.2);
+}
+.modal h2 { color: #1B3A6B; margin-bottom: 8px; }
+.modal-total { font-size: 18px; margin-bottom: 8px; color: #333; }
+.modal-metodo { font-size: 14px; color: #888; margin-bottom: 16px; }
+.modal-seccion { border-top: 1px solid #eee; padding-top: 16px; margin-bottom: 16px; }
+.modal-label { font-size: 14px; font-weight: 500; color: #1B3A6B; margin-bottom: 12px; }
+.opcional { font-size: 12px; color: #888; font-weight: 400; }
+.modal .campo { margin-bottom: 12px; }
+.modal input, .modal select {
+  width: 100%; padding: 8px 12px;
+  border: 1px solid #ccc; border-radius: 6px;
+  font-size: 14px; margin-top: 4px;
+}
+.modal-botones { display: flex; gap: 12px; margin-top: 16px; }
+.btn-cancelar {
+  flex: 1; padding: 10px;
+  background: white; color: #888;
+  border: 1px solid #ccc; border-radius: 8px;
+  cursor: pointer; font-size: 14px;
+}
+.btn-confirmar-modal {
+  flex: 1; padding: 10px;
+  background: #1E7E50; color: white;
+  border: none; border-radius: 8px;
+  cursor: pointer; font-size: 14px;
+}
+.btn-confirmar-modal:disabled { background: #ccc; }
+.modal-exito { text-align: center; }
+.exito-icon { font-size: 48px; margin-bottom: 16px; }
 .exito { color: #1E7E50; margin-top: 12px; }
 .error { color: red; margin-top: 12px; }
 </style>
