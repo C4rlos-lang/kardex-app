@@ -30,6 +30,9 @@
             <button class="btn-ver" @click="verInventario(almacen)">
               👁️ Ver inventario
             </button>
+            <button class="btn-dashboard" @click="verDashboard(almacen)">
+            📊 Dashboard
+            </button>
           </td>
         </tr>
       </tbody>

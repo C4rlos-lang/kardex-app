@@ -4,6 +4,7 @@ import Lista from '../views/Lista.vue'
 import Almacenes from '../views/Almacenes.vue'
 import ListaAlmacenes from '../views/ListaAlmacenes.vue'
 import POS from '../views/POS.vue'
+import Dashboard from '../views/Dashboard.vue'
 
 const routes = [
   { path: '/', redirect: '/productos' },
@@ -20,3 +21,7 @@ const router = createRouter({
 })
 
 export default router
+
+
+// En routes agrega:
+{ path: '/dashboard', component: Dashboard },
