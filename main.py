@@ -6,7 +6,7 @@ from sqlalchemy.orm import sessionmaker, Session
 from pydantic import BaseModel
 from typing import Optional
 from datetime import datetime
-from pydantic import BaseModel, EmailStr
+from pydantic import BaseModel, field_validator
 
 # ── 1. Base de datos ──────────────────────────────────────────────
 engine = create_engine("postgresql://postgres.thcdadlejpdhaaekyost:Kardex2026App@aws-1-us-east-1.pooler.supabase.com:6543/postgres?sslmode=require")
@@ -147,9 +147,18 @@ class VentaSchema(BaseModel):
 class ClienteSchema(BaseModel):
     nombre:    Optional[str] = None
     telefono:  Optional[str] = None
-    correo:    Optional[EmailStr] = None
+    correo:    Optional[str] = None
     genero:    Optional[str] = None
     documento: Optional[str] = None
+
+    @field_validator('correo')
+    @classmethod
+    def validar_correo(cls, v):
+        if v and '@' not in v:
+            raise ValueError('El correo no es válido')
+        return v
+
+
 
 # ── 4. Sesión ─────────────────────────────────────────────────────
 def get_db():
