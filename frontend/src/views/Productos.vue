@@ -5,8 +5,8 @@
     <form @submit.prevent="crearProducto">
       <div class="fila2">
         <div class="grupo">
-          <label>SKU</label>
-          <input v-model="form.sku" type="text" placeholder="Ej: NK-001" />
+          <label>SKU <span class="badge">Autogenerado</span></label>
+          <input v-model="form.sku" type="text" placeholder="Se genera al seleccionar marca" readonly class="input-readonly" />
         </div>
         <div class="grupo">
           <label>Nombre</label>
@@ -26,7 +26,7 @@
         </div>
         <div class="grupo">
           <label>Marca</label>
-          <select v-model="form.marca">
+          <select v-model="form.marca" @change="generarSKU">
             <option value="">Selecciona...</option>
             <option v-for="m in maestras.marca" :key="m.id" :value="m.valor">
               {{ m.valor }}
@@ -177,6 +177,25 @@ export default {
         this.preview = URL.createObjectURL(archivo)
       }
     },
+    async generarSKU() {
+      if (!this.form.marca) return
+      try {
+        const iniciales = this.form.marca
+          .replace(/[^a-zA-Z]/g, '')
+          .substring(0, 2)
+          .toUpperCase()
+
+        const { data } = await axios.get(`${API}/productos`)
+        const count = data.filter(p =>
+          p.marca && p.marca.toLowerCase() === this.form.marca.toLowerCase()
+        ).length
+
+        const numero = String(count + 1).padStart(4, '0')
+        this.form.sku = `${iniciales}-${numero}`
+      } catch (error) {
+        console.error('Error generando SKU', error)
+      }
+    },
     async cargarMaestras() {
       try {
         const tipos = ['categoria', 'marca', 'proveedor', 'genero', 'talla']
@@ -234,7 +253,10 @@ export default {
 
         this.mensaje = '¡Producto creado exitosamente!'
         this.exito = true
-        this.form = { sku: '', nombre: '', categoria: '', marca: '', precio: 0, stock: 0, proveedor: '', foto_url: null, genero: '' }
+        this.form = {
+          sku: '', nombre: '', categoria: '', marca: '',
+          precio: 0, stock: 0, proveedor: '', foto_url: null, genero: ''
+        }
         this.unidadesPorTalla = {}
         this.preview = null
         this.fotoArchivo = null
@@ -263,6 +285,11 @@ input, select {
 }
 .fila2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
 .fila3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; }
+.input-readonly {
+  background: #F2F4F7;
+  color: #555;
+  cursor: not-allowed;
+}
 .genero-wrap { display: flex; gap: 12px; flex-wrap: wrap; }
 .genero-btn {
   flex: 1; padding: 10px; text-align: center;
