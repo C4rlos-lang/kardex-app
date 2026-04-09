@@ -30,10 +30,17 @@
       <div class="config-wrap">
         <div class="campo">
           <label>Tipo de arqueo</label>
-          <select v-model="tipoArqueo">
+          <select v-model="tipoArqueo" @change="filtroMarca = ''">
             <option value="total">Total del almacén</option>
             <option value="por_marca">Por marca</option>
             <option value="por_producto">Por producto específico</option>
+          </select>
+        </div>
+        <div class="campo" v-if="tipoArqueo === 'por_marca'">
+          <label>Seleccionar marca</label>
+          <select v-model="filtroMarca">
+            <option value="">Todas las marcas</option>
+            <option v-for="m in marcasDisponibles" :key="m" :value="m">{{ m }}</option>
           </select>
         </div>
         <div class="campo">
@@ -69,10 +76,13 @@
           <img v-if="p.foto_url" :src="p.foto_url" class="prod-foto" />
           <div class="prod-info">
             <p class="prod-nombre">{{ p.nombre }}</p>
-            <p class="prod-sku">{{ p.sku }} · Stock sistema: {{ p.stockTotal }}</p>
+            <p class="prod-sku">{{ p.sku }} · Marca: {{ p.marca }} · Stock sistema: {{ p.stockTotal }}</p>
           </div>
           <button class="btn-agregar">+ Contar</button>
         </div>
+        <p v-if="productosFiltrados.length === 0" class="sin-datos">
+          No hay productos para mostrar
+        </p>
       </div>
 
       <!-- Tabla de conteo -->
@@ -183,6 +193,7 @@ export default {
       almacenes: [],
       almacenSeleccionado: null,
       tipoArqueo: 'total',
+      filtroMarca: '',
       responsable: '',
       busqueda: '',
       productos: [],
@@ -200,15 +211,30 @@ export default {
     }
   },
   computed: {
+    marcasDisponibles() {
+      const marcas = this.productos
+        .map(p => p.marca)
+        .filter(m => m && m.trim() !== '')
+      return [...new Set(marcas)].sort()
+    },
     productosFiltrados() {
       const b = this.busqueda.toLowerCase()
       let lista = this.productos
+
+      // Filtro por marca
+      if (this.tipoArqueo === 'por_marca' && this.filtroMarca) {
+        lista = lista.filter(p => p.marca === this.filtroMarca)
+      }
+
+      // Filtro por búsqueda
       if (b) {
         lista = lista.filter(p =>
           (p.nombre && p.nombre.toLowerCase().includes(b)) ||
           (p.sku && p.sku.toLowerCase().includes(b))
         )
       }
+
+      // Consolidar por SKU
       const mapa = {}
       lista.forEach(p => {
         if (!mapa[p.sku]) mapa[p.sku] = { ...p, stockTotal: 0 }
@@ -336,6 +362,7 @@ export default {
       this.productos = []
       this.conteo = []
       this.busqueda = ''
+      this.filtroMarca = ''
       this.mensaje = ''
     }
   },
@@ -371,8 +398,8 @@ h2 { font-size: 16px; color: #1B3A6B; margin-bottom: 12px; }
   background: none; border: 1px solid white;
   color: white; padding: 4px 12px; border-radius: 4px; cursor: pointer;
 }
-.config-wrap { display: flex; gap: 16px; margin-bottom: 16px; }
-.campo { flex: 1; }
+.config-wrap { display: flex; gap: 16px; margin-bottom: 16px; flex-wrap: wrap; }
+.campo { flex: 1; min-width: 160px; }
 label { font-size: 13px; color: #555; display: block; margin-bottom: 4px; }
 input, select {
   width: 100%; padding: 8px 12px;
@@ -446,6 +473,7 @@ tbody tr:nth-child(even) { background: #F2F4F7; }
 .btn-confirmar:disabled { background: #ccc; }
 .exito { color: #1E7E50; margin-top: 12px; }
 .error { color: red; margin-top: 12px; }
+.sin-datos { color: #888; font-size: 14px; text-align: center; padding: 24px; }
 .overlay {
   position: fixed; top: 0; left: 0;
   width: 100%; height: 100%;
