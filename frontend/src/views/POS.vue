@@ -25,10 +25,25 @@
         <button class="btn-cambiar" @click="almacenSeleccionado = null">Cambiar</button>
       </div>
 
+      <!-- Tabs móvil -->
+      <div class="tabs-movil">
+        <button
+          v-for="tab in tabs" :key="tab.key"
+          class="tab-btn"
+          :class="{ activo: tabActivo === tab.key }"
+          @click="tabActivo = tab.key"
+        >
+          {{ tab.label }}
+          <span v-if="tab.key === 'carrito' && carrito.length > 0" class="badge-carrito">
+            {{ carrito.length }}
+          </span>
+        </button>
+      </div>
+
       <div class="pos-grid">
 
         <!-- Panel izquierdo: buscar productos -->
-        <div class="panel-productos">
+        <div class="panel-productos" :class="{ 'tab-visible': tabActivo === 'productos' }">
           <h2>Productos</h2>
           <input
             v-model="busqueda"
@@ -46,7 +61,7 @@
             <div
               v-for="p in productosFiltrados" :key="p.sku"
               class="producto-card"
-              @click="seleccionarProducto(p)"
+              @click="seleccionarProducto(p); tabActivo = 'tallas'"
               :class="{ activo: productoActivo?.sku === p.sku }"
             >
               <img v-if="p.foto_url" :src="p.foto_url" class="prod-foto" />
@@ -60,7 +75,7 @@
         </div>
 
         <!-- Panel centro: tallas -->
-        <div class="panel-tallas" v-if="productoActivo">
+        <div class="panel-tallas" :class="{ 'tab-visible': tabActivo === 'tallas' }" v-if="productoActivo">
           <h2>{{ productoActivo.nombre }}</h2>
           <p class="prod-precio">${{ productoActivo.precio?.toLocaleString() }}</p>
           <p v-if="cargandoTallas">Cargando tallas...</p>
@@ -68,7 +83,7 @@
             <div
               v-for="t in tallas" :key="t.id"
               class="talla-card"
-              @click="agregarAlCarrito(t)"
+              @click="agregarAlCarrito(t); tabActivo = 'carrito'"
             >
               <span class="talla-num">{{ t.talla }}</span>
               <span class="talla-gen">{{ t.genero }}</span>
@@ -77,16 +92,15 @@
           </div>
         </div>
 
-        <div class="panel-tallas vacio" v-else>
+        <div class="panel-tallas vacio" :class="{ 'tab-visible': tabActivo === 'tallas' }" v-else>
           <p>← Selecciona un producto</p>
         </div>
 
         <!-- Panel derecho: carrito -->
-        <div class="panel-carrito">
+        <div class="panel-carrito" :class="{ 'tab-visible': tabActivo === 'carrito' }">
           <h2>Carrito</h2>
           <p v-if="carrito.length === 0" class="carrito-vacio">Sin productos</p>
           <div v-else>
-            
             <div class="carrito-item" v-for="(item, i) in carrito" :key="i">
               <div class="item-info">
                 <p class="item-nombre">{{ item.nombre }}</p>
@@ -163,7 +177,6 @@
 
         <div class="modal-seccion">
           <p class="modal-label">Datos del cliente <span class="opcional">(opcional)</span></p>
-
           <div class="campo">
             <label>Nombre</label>
             <input v-model="cliente.nombre" type="text" placeholder="Nombre completo" />
@@ -222,9 +235,7 @@
         <div class="exito-icon">🎉</div>
         <p class="modal-total">Total cobrado: <strong>${{ ultimoTotal.toLocaleString() }}</strong></p>
         <p class="modal-metodo">Método: {{ ultimoMetodo }}</p>
-        <button class="btn-confirmar-modal" @click="ventaConfirmada = false">
-          Aceptar
-        </button>
+        <button class="btn-confirmar-modal" @click="ventaConfirmada = false">Aceptar</button>
       </div>
     </div>
 
@@ -255,17 +266,17 @@ export default {
       exitoVenta: false,
       escaneando: false,
       scannerInstancia: null,
-      cliente: {
-        nombre: '',
-        telefono: '',
-        correo: '',
-        genero: '',
-        documento: ''
-      },
+      cliente: { nombre: '', telefono: '', correo: '', genero: '', documento: '' },
       mostrarModalVenta: false,
       ventaConfirmada: false,
       ultimoTotal: 0,
-      ultimoMetodo: ''
+      ultimoMetodo: '',
+      tabActivo: 'productos',
+      tabs: [
+        { key: 'productos', label: '📦 Productos' },
+        { key: 'tallas',    label: '👟 Tallas'    },
+        { key: 'carrito',   label: '🛒 Carrito'   },
+      ]
     }
   },
   computed: {
@@ -280,9 +291,7 @@ export default {
       }
       const mapa = {}
       lista.forEach(p => {
-        if (!mapa[p.sku]) {
-          mapa[p.sku] = { ...p, stock: 0 }
-        }
+        if (!mapa[p.sku]) mapa[p.sku] = { ...p, stock: 0 }
         mapa[p.sku].stock += p.stock
       })
       return Object.values(mapa)
@@ -363,13 +372,9 @@ export default {
           this.scannerInstancia.start(
             { facingMode: 'environment' },
             { fps: 10, qrbox: { width: 250, height: 250 } },
-            (texto) => {
-              this.procesarQR(texto)
-              this.detenerQR()
-            },
-            (error) => {}
-          ).catch(err => {
-            console.error('Error cámara:', err)
+            (texto) => { this.procesarQR(texto); this.detenerQR() },
+            () => {}
+          ).catch(() => {
             alert('No se pudo acceder a la cámara')
             this.escaneando = false
           })
@@ -386,26 +391,17 @@ export default {
     },
     async procesarQR(texto) {
       const partes = texto.split('|').map(p => p.trim())
-      if (partes.length < 2) {
-        alert('QR no reconocido')
-        return
-      }
+      if (partes.length < 2) { alert('QR no reconocido'); return }
       const sku = partes[0]
       const talla = partes[2] ? partes[2].replace('Talla:', '').trim() : null
-
       const producto = this.productos.find(p => p.sku === sku)
-      if (!producto) {
-        alert(`Producto con SKU ${sku} no encontrado en este almacén`)
-        return
-      }
+      if (!producto) { alert(`Producto ${sku} no encontrado`); return }
       await this.seleccionarProducto(producto)
-
       if (talla) {
         const tallaEncontrada = this.tallas.find(t => t.talla === talla)
-        if (tallaEncontrada) {
-          this.agregarAlCarrito(tallaEncontrada)
-        }
+        if (tallaEncontrada) this.agregarAlCarrito(tallaEncontrada)
       }
+      this.tabActivo = 'carrito'
     },
     async confirmarVenta() {
       this.cargandoVenta = true
@@ -432,6 +428,7 @@ export default {
         this.tallas = []
         this.cliente = { nombre: '', telefono: '', correo: '', genero: '', documento: '' }
         this.mensajeVenta = ''
+        this.tabActivo = 'productos'
         const { data } = await axios.get(`${API}/almacenes/${this.almacenSeleccionado.id}/inventario`)
         this.productos = data
       } catch (error) {
@@ -474,6 +471,10 @@ label { font-size: 13px; color: #555; display: block; margin-bottom: 8px; }
   background: none; border: 1px solid white;
   color: white; padding: 4px 12px; border-radius: 4px; cursor: pointer;
 }
+
+/* Tabs móvil — ocultos en desktop */
+.tabs-movil { display: none; }
+
 .pos-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; }
 .panel-productos, .panel-tallas, .panel-carrito {
   background: white; border-radius: 8px;
@@ -575,10 +576,7 @@ label { font-size: 13px; color: #555; display: block; margin-bottom: 8px; }
   background: #1B3A6B; color: white;
 }
 .panel-header h2 { margin: 0; font-size: 18px; color: white; }
-.cerrar {
-  background: none; border: none;
-  color: white; font-size: 20px; cursor: pointer;
-}
+.cerrar { background: none; border: none; color: white; font-size: 20px; cursor: pointer; }
 .panel-body { padding: 24px; overflow-y: auto; flex: 1; }
 .modal-total { font-size: 18px; margin-bottom: 8px; color: #333; }
 .modal-metodo { font-size: 14px; color: #888; margin-bottom: 16px; }
@@ -592,59 +590,79 @@ label { font-size: 13px; color: #555; display: block; margin-bottom: 8px; }
 }
 .modal-botones { display: flex; gap: 12px; margin-top: 16px; }
 .btn-cancelar {
-  flex: 1; padding: 10px;
-  background: white; color: #888;
-  border: 1px solid #ccc; border-radius: 8px;
-  cursor: pointer; font-size: 14px;
+  flex: 1; padding: 10px; background: white; color: #888;
+  border: 1px solid #ccc; border-radius: 8px; cursor: pointer; font-size: 14px;
 }
 .btn-confirmar-modal {
-  flex: 1; padding: 10px;
-  background: #1E7E50; color: white;
-  border: none; border-radius: 8px;
-  cursor: pointer; font-size: 14px;
+  flex: 1; padding: 10px; background: #1E7E50; color: white;
+  border: none; border-radius: 8px; cursor: pointer; font-size: 14px;
 }
 .btn-confirmar-modal:disabled { background: #ccc; }
 .exito-body { text-align: center; padding-top: 48px; }
 .exito-icon { font-size: 64px; margin-bottom: 24px; }
 .exito { color: #1E7E50; margin-top: 12px; }
 .error { color: red; margin-top: 12px; }
-
 .precio-venta-wrap {
-  margin-top: 8px;
-  padding: 8px;
-  background: #F2F4F7;
-  border-radius: 6px;
+  margin-top: 8px; padding: 8px;
+  background: #F2F4F7; border-radius: 6px;
 }
-.precio-label {
-  font-size: 11px;
-  color: #888;
-  display: block;
-  margin-bottom: 4px;
-}
+.precio-label { font-size: 11px; color: #888; display: block; margin-bottom: 4px; }
 .precio-input {
-  width: 100%;
-  padding: 6px 10px;
-  border: 1px solid #ccc;
-  border-radius: 6px;
-  font-size: 14px;
-  margin-bottom: 6px;
+  width: 100%; padding: 6px 10px;
+  border: 1px solid #ccc; border-radius: 6px;
+  font-size: 14px; margin-bottom: 6px;
 }
-.precios-rapidos {
-  display: flex;
-  gap: 6px;
-}
+.precios-rapidos { display: flex; gap: 6px; }
 .precios-rapidos button {
-  flex: 1;
-  padding: 4px 6px;
-  background: white;
-  border: 1px solid #2E5FA3;
-  color: #2E5FA3;
-  border-radius: 4px;
-  cursor: pointer;
-  font-size: 11px;
-  font-weight: 500;
+  flex: 1; padding: 4px 6px; background: white;
+  border: 1px solid #2E5FA3; color: #2E5FA3;
+  border-radius: 4px; cursor: pointer; font-size: 11px; font-weight: 500;
 }
-.precios-rapidos button:hover {
-  background: #D6E4F7;
+.precios-rapidos button:hover { background: #D6E4F7; }
+
+/* ── Responsive ────────────────────────────────────────────────── */
+@media (max-width: 768px) {
+  .tabs-movil {
+    display: flex; gap: 8px;
+    margin-bottom: 16px;
+  }
+  .tab-btn {
+    flex: 1; padding: 10px 8px;
+    border: 1px solid #ccc; background: white;
+    border-radius: 8px; cursor: pointer;
+    font-size: 13px; color: #555;
+    position: relative;
+  }
+  .tab-btn.activo {
+    background: #1B3A6B; color: white; border-color: #1B3A6B;
+  }
+  .badge-carrito {
+    position: absolute; top: -6px; right: -6px;
+    background: #c0392b; color: white;
+    border-radius: 50%; width: 18px; height: 18px;
+    font-size: 11px; display: flex;
+    align-items: center; justify-content: center;
+  }
+  .pos-grid {
+    grid-template-columns: 1fr;
+  }
+  .panel-productos,
+  .panel-tallas,
+  .panel-carrito {
+    display: none;
+    max-height: none;
+  }
+  .panel-productos.tab-visible,
+  .panel-tallas.tab-visible,
+  .panel-carrito.tab-visible {
+    display: block;
+  }
+  .panel-lateral {
+    width: 100vw;
+    right: -100vw;
+  }
+  .tallas-grid {
+    grid-template-columns: repeat(4, 1fr);
+  }
 }
 </style>
