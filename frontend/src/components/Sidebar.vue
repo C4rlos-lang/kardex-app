@@ -8,6 +8,7 @@
       <router-link to="/lista-almacenes">📋 Lista Almacenes</router-link>
       <router-link to="/pos">🛒 Punto de Venta</router-link>
       <router-link to="/arqueo">📋 Arqueo</router-link>
+      <router-link to="/maestras">⚙️ Maestras</router-link>
     </nav>
   </div>
 </template>
