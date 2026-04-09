@@ -27,7 +27,7 @@
             </span>
           </td>
           <td>
-            <div style="display:flex; gap:6px;">
+            <div style="display:flex; gap:6px; flex-wrap:wrap;">
               <button class="btn-ver" @click="verInventario(almacen)">👁️ Ver inventario</button>
               <button class="btn-dashboard" @click="verDashboard(almacen)">📊 Dashboard</button>
             </div>
@@ -48,38 +48,40 @@
       <div class="panel-body">
         <p v-if="cargandoInventario">Cargando inventario...</p>
         <p v-else-if="inventarioAgrupado.length === 0">Sin productos en este almacén.</p>
-        <table v-else class="tabla-inventario">
-          <thead>
-            <tr>
-              <th>Foto</th>
-              <th>SKU</th>
-              <th>Nombre</th>
-              <th>Marca</th>
-              <th>Precio</th>
-              <th>Stock total</th>
-              <th>Acciones</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr v-for="item in inventarioAgrupado" :key="item.id">
-              <td>
-                <img v-if="item.foto_url" :src="item.foto_url" class="foto" />
-                <span v-else>Sin foto</span>
-              </td>
-              <td>{{ item.sku }}</td>
-              <td>{{ item.nombre }}</td>
-              <td>{{ item.marca }}</td>
-              <td>${{ item.precio }}</td>
-              <td>{{ item.stockTotal }}</td>
-              <td>
-                <div style="display:flex; gap:6px;">
-                  <button class="btn-etiqueta" @click="verEtiquetas(item)">🏷️ Etiquetas</button>
-                  <button class="btn-tallas" @click="verTallas(item)">👁️ Tallas</button>
-                </div>
-              </td>
-            </tr>
-          </tbody>
-        </table>
+        <div v-else class="tabla-scroll">
+          <table class="tabla-inventario">
+            <thead>
+              <tr>
+                <th>Foto</th>
+                <th>SKU</th>
+                <th>Nombre</th>
+                <th>Marca</th>
+                <th>Precio</th>
+                <th>Stock total</th>
+                <th>Acciones</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="item in inventarioAgrupado" :key="item.id">
+                <td>
+                  <img v-if="item.foto_url" :src="item.foto_url" class="foto" />
+                  <span v-else>Sin foto</span>
+                </td>
+                <td>{{ item.sku }}</td>
+                <td>{{ item.nombre }}</td>
+                <td>{{ item.marca }}</td>
+                <td>${{ item.precio }}</td>
+                <td>{{ item.stockTotal }}</td>
+                <td>
+                  <div style="display:flex; gap:6px; flex-wrap:wrap;">
+                    <button class="btn-etiqueta" @click="verEtiquetas(item)">🏷️ Etiquetas</button>
+                    <button class="btn-tallas" @click="verTallas(item)">👁️ Tallas</button>
+                  </div>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
       </div>
     </div>
 
@@ -158,10 +160,10 @@
         <!-- Filtros de tiempo -->
         <div class="filtros-wrap">
           <button
-            v-for="f in filtros" :key="f.dias"
+            v-for="f in filtros" :key="f.label"
             class="filtro-btn"
-            :class="{ activo: filtroDias === f.dias }"
-            @click="filtroDias = f.dias; cargarDashboard()"
+            :class="{ activo: filtroDias === f.dias && filtroSoloAyer === f.soloAyer }"
+            @click="filtroDias = f.dias; filtroSoloAyer = f.soloAyer; cargarDashboard()"
           >
             {{ f.label }}
           </button>
@@ -325,13 +327,14 @@ export default {
       dashboardData: null,
       cargandoDashboard: false,
       filtroDias: 30,
-      filtros: [ 
-      { label: 'Hoy', dias: 1 },
-      { label: 'Ayer', dias: 2 },
-      { label: '7 días', dias: 7 },
-      { label: '30 días', dias: 30 },
-      { label: '6 meses', dias: 180 },
-      { label: '1 año', dias: 365 },
+      filtroSoloAyer: false,
+      filtros: [
+        { label: 'Hoy',     dias: 1,   soloAyer: false },
+        { label: 'Ayer',    dias: 1,   soloAyer: true  },
+        { label: '7 días',  dias: 7,   soloAyer: false },
+        { label: '30 días', dias: 30,  soloAyer: false },
+        { label: '6 meses', dias: 180, soloAyer: false },
+        { label: '1 año',   dias: 365, soloAyer: false },
       ]
     }
   },
@@ -339,9 +342,7 @@ export default {
     inventarioAgrupado() {
       const mapa = {}
       this.inventario.forEach(item => {
-        if (!mapa[item.id]) {
-          mapa[item.id] = { ...item, stockTotal: 0 }
-        }
+        if (!mapa[item.id]) mapa[item.id] = { ...item, stockTotal: 0 }
         mapa[item.id].stockTotal += item.stock
       })
       return Object.values(mapa)
@@ -401,13 +402,17 @@ export default {
       this.almacenDashboard = almacen
       this.panelDashboardAbierto = true
       this.filtroDias = 30
+      this.filtroSoloAyer = false
       await this.cargarDashboard()
     },
     async cargarDashboard() {
       this.cargandoDashboard = true
       try {
+        const params = this.filtroSoloAyer
+          ? `dias=1&solo_ayer=true`
+          : `dias=${this.filtroDias}`
         const { data } = await axios.get(
-          `https://kardex-app.onrender.com/dashboard/${this.almacenDashboard.id}?dias=${this.filtroDias}`
+          `https://kardex-app.onrender.com/dashboard/${this.almacenDashboard.id}?${params}`
         )
         this.dashboardData = data
       } catch (error) {
@@ -555,7 +560,8 @@ tbody tr:hover { background: #D6E4F7; }
   color: white; font-size: 20px; cursor: pointer;
 }
 .panel-body { padding: 24px; overflow-y: auto; flex: 1; }
-.tabla-inventario { margin-top: 0; }
+.tabla-scroll { overflow-x: auto; }
+.tabla-inventario { margin-top: 0; min-width: 600px; }
 .foto { width: 40px; height: 40px; object-fit: cover; border-radius: 4px; }
 .talla-badge {
   background: #D6E4F7; color: #1B3A6B;
@@ -637,4 +643,51 @@ tbody tr:hover { background: #D6E4F7; }
 .barra-valor-top { font-size: 9px; color: #555; text-align: center; font-weight: 500; }
 .barra-porcentaje { font-size: 9px; color: #888; text-align: center; }
 .sin-datos { font-size: 13px; color: #888; margin-top: 8px; }
+
+/* ── Responsive ────────────────────────────────────────────────── */
+@media (max-width: 900px) {
+  .panel-wide {
+    width: 100vw;
+    right: -100vw;
+  }
+}
+
+@media (max-width: 600px) {
+  .panel {
+    width: 100vw;
+    right: -100vw;
+  }
+  .dash-cards {
+    flex-direction: column;
+  }
+  .dash-card {
+    min-width: 100%;
+  }
+  .barras {
+    height: 100px;
+  }
+  .barra-valor-top {
+    font-size: 7px;
+  }
+  .barra-porcentaje {
+    font-size: 7px;
+  }
+  .filtros-wrap {
+    gap: 4px;
+  }
+  .filtro-btn {
+    padding: 5px 8px;
+    font-size: 11px;
+  }
+  .dash-titulo {
+    font-size: 14px;
+  }
+  .dash-valor {
+    font-size: 16px;
+  }
+  th, td {
+    padding: 8px 10px;
+    font-size: 12px;
+  }
+}
 </style>
