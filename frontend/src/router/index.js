@@ -5,6 +5,7 @@ import Almacenes from '../views/Almacenes.vue'
 import ListaAlmacenes from '../views/ListaAlmacenes.vue'
 import POS from '../views/POS.vue'
 import Dashboard from '../views/Dashboard.vue'
+import Arqueo from '../views/Arqueo.vue'
 
 const routes = [
   { path: '/', redirect: '/productos' },
@@ -14,6 +15,7 @@ const routes = [
   { path: '/lista-almacenes', component: ListaAlmacenes },
   { path: '/pos', component: POS },
   { path: '/dashboard', component: Dashboard },
+  { path: '/arqueo', component: Arqueo },
 ]
 
 const router = createRouter({
