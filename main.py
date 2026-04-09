@@ -124,6 +124,14 @@ class ArqueoDetalle(Base):
     stock_fisico   = Column(Integer)
     diferencia     = Column(Integer)
 
+class Maestra(Base):
+    __tablename__ = "maestras"
+    id             = Column(Integer, primary_key=True)
+    tipo           = Column(String, nullable=False)
+    valor          = Column(String, nullable=False)
+    activo         = Column(String, default=True)
+    fecha_registro = Column(DateTime, default=datetime.utcnow)
+
 # ── 3. Schemas ────────────────────────────────────────────────────
 class ProductoSchema(BaseModel):
     sku:       str
@@ -196,6 +204,10 @@ class ArqueoSchema(BaseModel):
     responsable: Optional[str] = None
     detalles:    list[ArqueoDetalleSchema]
 
+class MaestraSchema(BaseModel):
+    tipo:   str
+    valor:  str
+    activo: Optional[bool] = True
 
 # ── 4. Sesión ─────────────────────────────────────────────────────
 def get_db():
@@ -813,3 +825,41 @@ def listar_arqueos(almacen_id: int, db: Session = Depends(get_db)):
     return db.query(Arqueo).filter(
         Arqueo.almacen_id == almacen_id
     ).order_by(Arqueo.fecha_inicio.desc()).all()
+
+@app.get("/maestras/{tipo}")
+def listar_maestras(tipo: str, db: Session = Depends(get_db)):
+    return db.query(Maestra).filter(
+        Maestra.tipo == tipo
+    ).order_by(Maestra.valor).all()
+
+@app.post("/maestras")
+def crear_maestra(maestra: MaestraSchema, db: Session = Depends(get_db)):
+    nueva = Maestra(
+        tipo=maestra.tipo,
+        valor=maestra.valor,
+        activo=maestra.activo
+    )
+    db.add(nueva)
+    db.commit()
+    db.refresh(nueva)
+    return nueva
+
+@app.put("/maestras/{id}")
+def actualizar_maestra(id: int, maestra: MaestraSchema, db: Session = Depends(get_db)):
+    m = db.query(Maestra).filter(Maestra.id == id).first()
+    if not m:
+        raise HTTPException(status_code=404, detail="Maestra no encontrada")
+    m.valor = maestra.valor
+    m.activo = maestra.activo
+    db.commit()
+    db.refresh(m)
+    return m
+
+@app.delete("/maestras/{id}")
+def eliminar_maestra(id: int, db: Session = Depends(get_db)):
+    m = db.query(Maestra).filter(Maestra.id == id).first()
+    if not m:
+        raise HTTPException(status_code=404, detail="Maestra no encontrada")
+    db.delete(m)
+    db.commit()
+    return {"mensaje": "Eliminado"}
