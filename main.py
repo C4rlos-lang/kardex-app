@@ -8,10 +8,15 @@ from typing import Optional
 from datetime import datetime
 from pydantic import BaseModel, field_validator
 from sqlalchemy import func, extract
+import os
 
 
 # ── 1. Base de datos ──────────────────────────────────────────────
-engine = create_engine("postgresql://postgres.thcdadlejpdhaaekyost:Kardex2026App@aws-1-us-east-1.pooler.supabase.com:6543/postgres?sslmode=require")
+
+DATABASE_URL = os.getenv("DATABASE_URL", "postgresql://postgres.thcdadlejpdhaaekyost:Kardex2026App@aws-1-us-east-1.pooler.supabase.com:6543/postgres?sslmode=require")
+
+engine = create_engine(DATABASE_URL)
+
 SessionLocal = sessionmaker(bind=engine)
 Base = declarative_base()
 
