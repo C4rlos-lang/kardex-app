@@ -124,7 +124,7 @@ const supabase = createClient(
   'sb_publishable_d6fIfDVkO3SFZW4PBNr5Bw_6qgg9PKN'
 )
 
-const API = 'https://kardex-app.onrender.com'
+const API = import.meta.env.VITE_API_URL
 
 export default {
   data() {

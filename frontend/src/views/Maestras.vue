@@ -68,7 +68,7 @@
 <script>
 import axios from 'axios'
 
-const API = 'https://kardex-app.onrender.com'
+const API = import.meta.env.VITE_API_URL
 
 export default {
   data() {

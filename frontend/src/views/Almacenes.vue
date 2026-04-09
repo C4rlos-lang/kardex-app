@@ -57,7 +57,8 @@ export default {
     async crearAlmacen() {
       this.cargando = true
       try {
-        await axios.post('https://kardex-app.onrender.com/almacenes', this.form)
+        const API = import.meta.env.VITE_API_URL
+        await axios.post(`${API}/almacenes`, this.form)
         this.mensaje = '¡Almacén creado exitosamente!'
         this.exito = true
         this.form = { nombre: '', direccion: '', ciudad: '', responsable: '', estado: 'activo' }

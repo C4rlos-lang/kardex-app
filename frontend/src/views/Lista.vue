@@ -293,7 +293,8 @@ export default {
         this.exitoTransferencia = true
         this.transferencia = { almacen_id: '', producto_id: '', cantidad: 0, talla: '', genero: '' }
         this.tallasTransferencia = []
-        const { data } = await axios.get('https://kardex-app.onrender.com/productos')
+        const API = import.meta.env.VITE_API_URL
+        const { data } = await axios.get(`${API}/productos`)
         this.productos = data
       } catch (error) {
         this.mensajeTransferencia = error.response?.data?.detail || 'Error al transferir'
