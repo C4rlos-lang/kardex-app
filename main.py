@@ -126,11 +126,12 @@ class ArqueoDetalle(Base):
 
 class Maestra(Base):
     __tablename__ = "maestras"
-    id             = Column(Integer, primary_key=True)
-    tipo           = Column(String, nullable=False)
-    valor          = Column(String, nullable=False)
-    activo         = Column(String, default=True)
-    fecha_registro = Column(DateTime, default=datetime.utcnow)
+    id                 = Column(Integer, primary_key=True)
+    tipo               = Column(String, nullable=False)
+    valor              = Column(String, nullable=False)
+    activo             = Column(String, default=True)
+    genero_relacionado = Column(String, nullable=True)
+    fecha_registro     = Column(DateTime, default=datetime.utcnow)
 
 # ── 3. Schemas ────────────────────────────────────────────────────
 class ProductoSchema(BaseModel):
@@ -205,9 +206,10 @@ class ArqueoSchema(BaseModel):
     detalles:    list[ArqueoDetalleSchema]
 
 class MaestraSchema(BaseModel):
-    tipo:   str
-    valor:  str
-    activo: Optional[bool] = True
+    tipo:               str
+    valor:              str
+    activo:             Optional[bool] = True
+    genero_relacionado: Optional[str] = None
 
 # ── 4. Sesión ─────────────────────────────────────────────────────
 def get_db():

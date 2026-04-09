@@ -17,11 +17,21 @@
       <div class="fila3">
         <div class="grupo">
           <label>Categoría</label>
-          <input v-model="form.categoria" type="text" placeholder="Ej: Calzado" />
+          <select v-model="form.categoria">
+            <option value="">Selecciona...</option>
+            <option v-for="c in maestras.categoria" :key="c.id" :value="c.valor">
+              {{ c.valor }}
+            </option>
+          </select>
         </div>
         <div class="grupo">
           <label>Marca</label>
-          <input v-model="form.marca" type="text" placeholder="Ej: Nike" />
+          <select v-model="form.marca">
+            <option value="">Selecciona...</option>
+            <option v-for="m in maestras.marca" :key="m.id" :value="m.valor">
+              {{ m.valor }}
+            </option>
+          </select>
         </div>
         <div class="grupo">
           <label>Precio</label>
@@ -32,7 +42,12 @@
       <div class="fila2">
         <div class="grupo">
           <label>Proveedor</label>
-          <input v-model="form.proveedor" type="text" placeholder="Ej: Proveedor SA" />
+          <select v-model="form.proveedor">
+            <option value="">Selecciona...</option>
+            <option v-for="p in maestras.proveedor" :key="p.id" :value="p.valor">
+              {{ p.valor }}
+            </option>
+          </select>
         </div>
       </div>
 
@@ -47,18 +62,18 @@
         <label>Género</label>
         <div class="genero-wrap">
           <div
-            v-for="g in generos" :key="g.valor"
+            v-for="g in maestras.genero" :key="g.id"
             class="genero-btn"
             :class="{ activo: form.genero === g.valor }"
-            @click="form.genero = g.valor"
+            @click="seleccionarGenero(g.valor)"
           >
-            {{ g.label }}
+            {{ g.valor }}
           </div>
         </div>
       </div>
 
       <!-- Tallas -->
-      <div class="seccion-tallas" v-if="form.genero">
+      <div class="seccion-tallas" v-if="form.genero && tallasActuales.length">
         <p class="seccion-titulo">
           Tallas y unidades
           <span class="badge">{{ form.genero }}</span>
@@ -87,6 +102,10 @@
         </table>
       </div>
 
+      <div v-if="form.genero && tallasActuales.length === 0" class="aviso">
+        ⚠️ No hay tallas configuradas para <strong>{{ form.genero }}</strong>. Ve a Maestras → Tallas para agregarlas.
+      </div>
+
       <button type="submit" :disabled="cargando">
         {{ cargando ? 'Guardando...' : 'Guardar producto' }}
       </button>
@@ -105,11 +124,7 @@ const supabase = createClient(
   'sb_publishable_d6fIfDVkO3SFZW4PBNr5Bw_6qgg9PKN'
 )
 
-const TALLAS = {
-  hombre: [6, 6.5, 7, 7.5, 8, 8.5, 9, 9.5, 10, 10.5, 11],
-  mujer:  [5, 5.5, 6, 6.5, 7, 7.5, 8, 8.5, 9, 9.5],
-  nino:   [1, 1.5, 2, 2.5, 3, 3.5, 4, 4.5, 5]
-}
+const API = 'https://kardex-app.onrender.com'
 
 export default {
   data() {
@@ -119,11 +134,13 @@ export default {
         precio: 0, stock: 0, proveedor: '', foto_url: null,
         genero: ''
       },
-      generos: [
-        { valor: 'hombre', label: 'Hombre' },
-        { valor: 'mujer',  label: 'Mujer'  },
-        { valor: 'nino',   label: 'Niño'   }
-      ],
+      maestras: {
+        categoria: [],
+        marca: [],
+        proveedor: [],
+        genero: [],
+        talla: []
+      },
       unidadesPorTalla: {},
       fotoArchivo: null,
       preview: null,
@@ -134,7 +151,14 @@ export default {
   },
   computed: {
     tallasActuales() {
-      return TALLAS[this.form.genero] || []
+      if (!this.form.genero) return []
+      return this.maestras.talla
+        .filter(t => {
+          if (!t.genero_relacionado) return true
+          return t.genero_relacionado.toLowerCase() === this.form.genero.toLowerCase()
+        })
+        .map(t => t.valor)
+        .sort((a, b) => parseFloat(a) - parseFloat(b))
     }
   },
   watch: {
@@ -143,6 +167,9 @@ export default {
     }
   },
   methods: {
+    seleccionarGenero(valor) {
+      this.form.genero = valor
+    },
     seleccionarFoto(event) {
       const archivo = event.target.files[0]
       if (archivo) {
@@ -150,10 +177,22 @@ export default {
         this.preview = URL.createObjectURL(archivo)
       }
     },
+    async cargarMaestras() {
+      try {
+        const tipos = ['categoria', 'marca', 'proveedor', 'genero', 'talla']
+        const resultados = await Promise.all(
+          tipos.map(t => axios.get(`${API}/maestras/${t}`))
+        )
+        tipos.forEach((t, i) => {
+          this.maestras[t] = resultados[i].data.filter(m => m.activo)
+        })
+      } catch (error) {
+        console.error('Error cargando maestras', error)
+      }
+    },
     async crearProducto() {
       this.cargando = true
       try {
-        // Subir foto
         if (this.fotoArchivo) {
           const nombre = `${Date.now()}_${this.fotoArchivo.name}`
           const { error } = await supabase.storage
@@ -166,8 +205,7 @@ export default {
           this.form.foto_url = data.publicUrl
         }
 
-        // Crear producto
-        const res = await axios.post('https://kardex-app.onrender.com/productos', {
+        const res = await axios.post(`${API}/productos`, {
           sku: this.form.sku,
           nombre: this.form.nombre,
           categoria: this.form.categoria,
@@ -181,7 +219,6 @@ export default {
 
         const productoId = res.data.id
 
-        // Guardar tallas
         const tallas = this.tallasActuales
           .filter(t => this.unidadesPorTalla[t] > 0)
           .map(t => ({
@@ -192,7 +229,7 @@ export default {
           }))
 
         if (tallas.length > 0) {
-          await axios.post('https://kardex-app.onrender.com/producto-tallas', tallas)
+          await axios.post(`${API}/producto-tallas`, tallas)
         }
 
         this.mensaje = '¡Producto creado exitosamente!'
@@ -207,6 +244,9 @@ export default {
       }
       this.cargando = false
     }
+  },
+  mounted() {
+    this.cargarMaestras()
   }
 }
 </script>
@@ -223,11 +263,12 @@ input, select {
 }
 .fila2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
 .fila3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; }
-.genero-wrap { display: flex; gap: 12px; }
+.genero-wrap { display: flex; gap: 12px; flex-wrap: wrap; }
 .genero-btn {
   flex: 1; padding: 10px; text-align: center;
   border: 1px solid #ccc; border-radius: 6px;
   cursor: pointer; font-size: 14px; color: #555;
+  min-width: 80px;
 }
 .genero-btn.activo {
   border: 2px solid #1B3A6B;
@@ -253,6 +294,12 @@ input, select {
 .tabla-tallas td { padding: 6px 8px; border-bottom: 1px solid #eee; }
 .talla-label { font-size: 14px; font-weight: 500; color: #333; }
 .talla-input { width: 80px !important; }
+.aviso {
+  margin-top: 16px; padding: 12px 16px;
+  background: #fff3cd; border-radius: 8px;
+  font-size: 13px; color: #856404;
+  border-left: 4px solid #ffc107;
+}
 button {
   margin-top: 24px; width: 100%; padding: 12px;
   background: #1B3A6B; color: white;
