@@ -367,11 +367,11 @@ export default {
   async mounted() {
     try {
       const { data } = await axios.get('https://kardex-app.onrender.com/productos')
-      this.productos = data
-      const resAlmacenes = await axios.get('https://kardex-app.onrender.com/almacenes')
-      this.almacenes = resAlmacenes.data
+      this.productos = data.sort((a, b) => 
+        new Date(b.fecha_registro) - new Date(a.fecha_registro)
+      )
     } catch (error) {
-      console.error('Error cargando datos', error)
+      console.error('Error cargando productos', error)
     }
     this.cargando = false
   }
