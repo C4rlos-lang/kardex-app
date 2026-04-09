@@ -150,9 +150,8 @@
               <p class="et-nombre">{{ productoEtiquetas?.nombre }}</p>
               <p class="et-sku">{{ productoEtiquetas?.sku }}</p>
               <span class="et-talla">{{ t.talla }}</span>
-              <p class="et-genero">{{ t.genero }}</p>
               <canvas :id="'qr-' + i" class="qr-canvas"></canvas>
-              <p class="et-codigo">{{ productoEtiquetas?.sku }}-T{{ t.talla }}-{{ t.genero?.toUpperCase() }}</p>
+              <p class="et-codigo">{{ productoEtiquetas?.sku }}-T{{ t.talla }}</p>
             </div>
           </div>
         </div>
@@ -162,7 +161,7 @@
     <!-- Overlay tallas -->
     <div class="overlay" v-if="panelTallasAbierto" @click.self="panelTallasAbierto = false"></div>
 
-    <!-- Panel tallas disponibles -->
+    <!-- Panel tallas -->
     <div class="panel" :class="{ abierto: panelTallasAbierto }">
       <div class="panel-header">
         <h2>👁️ Tallas — {{ productoTallas?.nombre }}</h2>
@@ -195,6 +194,8 @@
 
 <script>
 import axios from 'axios'
+
+const API = import.meta.env.VITE_API_URL
 
 export default {
   data() {
@@ -258,7 +259,7 @@ export default {
       this.panelTallasAbierto = true
       this.cargandoTallasVista = true
       try {
-        const { data } = await axios.get(`https://kardex-app.onrender.com/productos/${producto.id}/tallas`)
+        const { data } = await axios.get(`${API}/productos/${producto.id}/tallas`)
         this.tallasVista = data.filter(t => t.unidades > 0)
       } catch (error) {
         console.error('Error', error)
@@ -268,7 +269,7 @@ export default {
     async cargarTallasTransferencia() {
       if (!this.transferencia.producto_id) return
       try {
-        const { data } = await axios.get(`https://kardex-app.onrender.com/productos/${this.transferencia.producto_id}/tallas`)
+        const { data } = await axios.get(`${API}/productos/${this.transferencia.producto_id}/tallas`)
         this.tallasTransferencia = data.filter(t => t.unidades > 0)
       } catch (error) {
         console.error('Error cargando tallas', error)
@@ -282,7 +283,7 @@ export default {
       }
       this.cargandoTransferencia = true
       try {
-        await axios.post('https://kardex-app.onrender.com/transferencias', {
+        await axios.post(`${API}/transferencias`, {
           almacen_id: this.transferencia.almacen_id,
           producto_id: this.transferencia.producto_id,
           cantidad: parseFloat(this.transferencia.cantidad),
@@ -293,9 +294,10 @@ export default {
         this.exitoTransferencia = true
         this.transferencia = { almacen_id: '', producto_id: '', cantidad: 0, talla: '', genero: '' }
         this.tallasTransferencia = []
-        const API = import.meta.env.VITE_API_URL
         const { data } = await axios.get(`${API}/productos`)
-        this.productos = data
+        this.productos = data.sort((a, b) =>
+          new Date(b.fecha_registro) - new Date(a.fecha_registro)
+        )
       } catch (error) {
         this.mensajeTransferencia = error.response?.data?.detail || 'Error al transferir'
         this.exitoTransferencia = false
@@ -307,7 +309,7 @@ export default {
       this.panelEtiquetasAbierto = true
       this.cargandoEtiquetas = true
       try {
-        const { data } = await axios.get(`https://kardex-app.onrender.com/productos/${producto.id}/tallas`)
+        const { data } = await axios.get(`${API}/productos/${producto.id}/tallas`)
         this.tallas = data
         this.$nextTick(() => { this.generarQRs() })
       } catch (error) {
@@ -320,7 +322,7 @@ export default {
         this.tallas.forEach((t, i) => {
           const canvas = document.getElementById(`qr-${i}`)
           if (canvas) {
-            const texto = `${this.productoEtiquetas.sku} | ${this.productoEtiquetas.nombre} | Talla: ${t.talla} | ${t.genero}`
+            const texto = `${this.productoEtiquetas.sku} | ${this.productoEtiquetas.nombre} | Talla: ${t.talla}`
             QRCode.toCanvas(canvas, texto, { width: 80 })
           }
         })
@@ -329,16 +331,15 @@ export default {
     async imprimir() {
       const QRCode = await import('qrcode')
       const etiquetas = await Promise.all(this.tallas.map(async (t) => {
-        const texto = `${this.productoEtiquetas.sku} | ${this.productoEtiquetas.nombre} | Talla: ${t.talla} | ${t.genero}`
+        const texto = `${this.productoEtiquetas.sku} | ${this.productoEtiquetas.nombre} | Talla: ${t.talla}`
         const qrBase64 = await QRCode.toDataURL(texto, { width: 100, margin: 1 })
         return `
           <div class="etiqueta">
             <p class="et-nombre">${this.productoEtiquetas.nombre}</p>
             <p class="et-sku">${this.productoEtiquetas.sku}</p>
             <span class="et-talla">${t.talla}</span>
-            <p class="et-genero">${t.genero}</p>
             <img src="${qrBase64}" width="80" height="80" />
-            <p class="et-codigo">${this.productoEtiquetas.sku}-T${t.talla}-${t.genero?.toUpperCase()}</p>
+            <p class="et-codigo">${this.productoEtiquetas.sku}-T${t.talla}</p>
           </div>
         `
       }))
@@ -351,7 +352,6 @@ export default {
           .et-nombre { font-size: 12px; font-weight: bold; margin: 0; }
           .et-sku { font-size: 10px; color: #666; margin: 0; }
           .et-talla { font-size: 18px; font-weight: bold; color: #185FA5; background: #E6F1FB; padding: 2px 12px; border-radius: 20px; display: inline-block; }
-          .et-genero { font-size: 10px; color: #666; margin: 0; }
           .et-codigo { font-size: 9px; color: #999; margin: 0; }
           @media print { body { margin: 0; } }
         </style></head>
@@ -367,12 +367,16 @@ export default {
   },
   async mounted() {
     try {
-      const { data } = await axios.get('https://kardex-app.onrender.com/productos')
-      this.productos = data.sort((a, b) => 
+      const [productosRes, almacenesRes] = await Promise.all([
+        axios.get(`${API}/productos`),
+        axios.get(`${API}/almacenes`)
+      ])
+      this.productos = productosRes.data.sort((a, b) =>
         new Date(b.fecha_registro) - new Date(a.fecha_registro)
       )
+      this.almacenes = almacenesRes.data
     } catch (error) {
-      console.error('Error cargando productos', error)
+      console.error('Error cargando datos', error)
     }
     this.cargando = false
   }
@@ -386,11 +390,6 @@ h1 { margin-bottom: 16px; color: #1B3A6B; }
   width: 100%; max-width: 500px;
   padding: 10px 14px; font-size: 15px;
   border: 1px solid #ccc; border-radius: 8px;
-}
-.btn-etiqueta {
-  padding: 5px 10px; background: #1E7E50;
-  color: white; border: none;
-  border-radius: 6px; cursor: pointer; font-size: 12px;
 }
 .btn-transferir-row {
   padding: 5px 10px; background: #2E5FA3;
@@ -484,7 +483,6 @@ tbody tr:hover { background: #D6E4F7; }
   color: #185FA5; background: #E6F1FB;
   padding: 2px 12px; border-radius: 20px;
 }
-.et-genero { font-size: 10px; color: #666; }
 .qr-canvas { width: 80px !important; height: 80px !important; }
 .et-codigo { font-size: 9px; color: #999; }
 .talla-badge {
