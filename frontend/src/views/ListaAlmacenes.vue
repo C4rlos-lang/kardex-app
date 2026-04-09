@@ -157,7 +157,6 @@
       </div>
       <div class="panel-body" v-else-if="dashboardData">
 
-        <!-- Filtros de tiempo -->
         <div class="filtros-wrap">
           <button
             v-for="f in filtros" :key="f.label"
@@ -169,7 +168,6 @@
           </button>
         </div>
 
-        <!-- Financiero -->
         <div class="dash-seccion">
           <p class="dash-titulo">💰 Financiero</p>
           <div class="dash-cards">
@@ -204,7 +202,6 @@
           </div>
         </div>
 
-        <!-- Tendencias -->
         <div class="dash-seccion">
           <p class="dash-titulo">📈 Tendencias</p>
           <div class="dash-cards">
@@ -221,7 +218,6 @@
               <p class="dash-valor">{{ dashboardData.tendencias.talla_top_mujer || 'Sin datos' }}</p>
             </div>
           </div>
-
           <p class="dash-subtitulo">Ventas por mes</p>
           <div class="barras-container" v-if="dashboardData.tendencias.ventas_por_mes.length">
             <div class="barras">
@@ -234,7 +230,6 @@
             </div>
           </div>
           <p v-else class="sin-datos">Sin ventas en este período</p>
-
           <p class="dash-subtitulo">Ventas por día de la semana</p>
           <div class="barras-container" v-if="dashboardData.tendencias.ventas_por_dia.length">
             <div class="barras">
@@ -249,7 +244,6 @@
           <p v-else class="sin-datos">Sin ventas en este período</p>
         </div>
 
-        <!-- Inventario -->
         <div class="dash-seccion">
           <p class="dash-titulo">📦 Inventario</p>
           <div class="dash-cards">
@@ -269,7 +263,6 @@
           </div>
         </div>
 
-        <!-- Clientes -->
         <div class="dash-seccion">
           <p class="dash-titulo">👥 Clientes</p>
           <div class="dash-cards">
@@ -304,7 +297,9 @@
 
 <script>
 import axios from 'axios'
+
 const API = import.meta.env.VITE_API_URL
+
 export default {
   data() {
     return {
@@ -362,7 +357,7 @@ export default {
       this.panelAbierto = true
       this.cargandoInventario = true
       try {
-        const { data } = await axios.get(`https://kardex-app.onrender.com/almacenes/${almacen.id}/inventario`)
+        const { data } = await axios.get(`${API}/almacenes/${almacen.id}/inventario`)
         this.inventario = data
       } catch (error) {
         console.error('Error cargando inventario', error)
@@ -375,7 +370,7 @@ export default {
       this.cargandoTallas = true
       try {
         const { data } = await axios.get(
-          `https://kardex-app.onrender.com/almacenes/${this.almacenSeleccionado.id}/productos/${item.id}/tallas`
+          `${API}/almacenes/${this.almacenSeleccionado.id}/productos/${item.id}/tallas`
         )
         this.tallasVista = data
       } catch (error) {
@@ -389,7 +384,7 @@ export default {
       this.cargandoEtiquetas = true
       try {
         const { data } = await axios.get(
-          `https://kardex-app.onrender.com/almacenes/${this.almacenSeleccionado.id}/productos/${item.id}/tallas`
+          `${API}/almacenes/${this.almacenSeleccionado.id}/productos/${item.id}/tallas`
         )
         this.tallasEtiquetas = data
         this.$nextTick(() => { this.generarQRs() })
@@ -412,7 +407,7 @@ export default {
           ? `dias=1&solo_ayer=true`
           : `dias=${this.filtroDias}`
         const { data } = await axios.get(
-          `https://kardex-app.onrender.com/dashboard/${this.almacenDashboard.id}?${params}`
+          `${API}/dashboard/${this.almacenDashboard.id}?${params}`
         )
         this.dashboardData = data
       } catch (error) {
@@ -484,7 +479,7 @@ export default {
   },
   async mounted() {
     try {
-      const { data } = await axios.get('https://kardex-app.onrender.com/almacenes')
+      const { data } = await axios.get(`${API}/almacenes`)
       this.almacenes = data
     } catch (error) {
       console.error('Error cargando almacenes', error)
@@ -595,18 +590,15 @@ tbody tr:hover { background: #D6E4F7; }
   margin-bottom: 20px; flex-wrap: wrap;
 }
 .filtro-btn {
-  padding: 6px 14px;
-  border: 1px solid #ccc;
+  padding: 6px 14px; border: 1px solid #ccc;
   background: white; border-radius: 20px;
   cursor: pointer; font-size: 13px; color: #555;
 }
 .filtro-btn.activo {
-  background: #1B3A6B; color: white;
-  border-color: #1B3A6B;
+  background: #1B3A6B; color: white; border-color: #1B3A6B;
 }
 .dash-seccion {
-  margin-bottom: 24px;
-  padding-bottom: 24px;
+  margin-bottom: 24px; padding-bottom: 24px;
   border-bottom: 1px solid #eee;
 }
 .dash-titulo { font-size: 15px; font-weight: 600; color: #1B3A6B; margin-bottom: 12px; }
@@ -630,8 +622,7 @@ tbody tr:hover { background: #D6E4F7; }
   display: flex; align-items: flex-end;
   gap: 8px; height: 160px;
   border-bottom: 2px solid #eee;
-  padding-bottom: 4px;
-  min-width: 300px;
+  padding-bottom: 4px; min-width: 300px;
 }
 .barra-wrap { display: flex; flex-direction: column; align-items: center; gap: 2px; flex: 1; min-width: 40px; }
 .barra {
@@ -644,50 +635,20 @@ tbody tr:hover { background: #D6E4F7; }
 .barra-porcentaje { font-size: 9px; color: #888; text-align: center; }
 .sin-datos { font-size: 13px; color: #888; margin-top: 8px; }
 
-/* ── Responsive ────────────────────────────────────────────────── */
 @media (max-width: 900px) {
-  .panel-wide {
-    width: 100vw;
-    right: -100vw;
-  }
+  .panel-wide { width: 100vw; right: -100vw; }
 }
-
 @media (max-width: 600px) {
-  .panel {
-    width: 100vw;
-    right: -100vw;
-  }
-  .dash-cards {
-    flex-direction: column;
-  }
-  .dash-card {
-    min-width: 100%;
-  }
-  .barras {
-    height: 100px;
-  }
-  .barra-valor-top {
-    font-size: 7px;
-  }
-  .barra-porcentaje {
-    font-size: 7px;
-  }
-  .filtros-wrap {
-    gap: 4px;
-  }
-  .filtro-btn {
-    padding: 5px 8px;
-    font-size: 11px;
-  }
-  .dash-titulo {
-    font-size: 14px;
-  }
-  .dash-valor {
-    font-size: 16px;
-  }
-  th, td {
-    padding: 8px 10px;
-    font-size: 12px;
-  }
+  .panel { width: 100vw; right: -100vw; }
+  .dash-cards { flex-direction: column; }
+  .dash-card { min-width: 100%; }
+  .barras { height: 100px; }
+  .barra-valor-top { font-size: 7px; }
+  .barra-porcentaje { font-size: 7px; }
+  .filtros-wrap { gap: 4px; }
+  .filtro-btn { padding: 5px 8px; font-size: 11px; }
+  .dash-titulo { font-size: 14px; }
+  .dash-valor { font-size: 16px; }
+  th, td { padding: 8px 10px; font-size: 12px; }
 }
 </style>
