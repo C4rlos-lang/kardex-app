@@ -561,32 +561,40 @@ def dashboard(db: Session = Depends(get_db)):
     }
 
 @app.get("/dashboard/{almacen_id}")
-def dashboard_almacen(almacen_id: int, dias: int = 30, db: Session = Depends(get_db)):
+def dashboard_almacen(almacen_id: int, dias: int = 30, solo_ayer: bool = False, db: Session = Depends(get_db)):
     from datetime import timedelta
     hoy = datetime.utcnow()
-    fecha_inicio = hoy - timedelta(days=dias)
+
+    if solo_ayer:
+        fecha_inicio = hoy.replace(hour=0, minute=0, second=0, microsecond=0) - timedelta(days=1)
+        fecha_fin = hoy.replace(hour=0, minute=0, second=0, microsecond=0)
+    elif dias == 1:
+        fecha_inicio = hoy.replace(hour=0, minute=0, second=0, microsecond=0)
+        fecha_fin = hoy
+    else:
+        fecha_inicio = hoy - timedelta(days=dias)
+        fecha_fin = hoy
+
     mes_actual = hoy.month
     anio_actual = hoy.year
 
     # ── TENDENCIAS ────────────────────────────────────────────────
-    # Producto más vendido por género
-    producto_top_masc = db.query(
+    producto_top = db.query(
         DetalleVenta.producto_id,
         func.sum(DetalleVenta.cantidad).label("total")
     ).join(Venta, Venta.id == DetalleVenta.venta_id).filter(
         Venta.almacen_id == almacen_id,
         Venta.fecha >= fecha_inicio,
-        DetalleVenta.talla != None
+        Venta.fecha <= fecha_fin
     ).group_by(DetalleVenta.producto_id).order_by(
         func.sum(DetalleVenta.cantidad).desc()
     ).first()
 
     nombre_producto_top = None
-    if producto_top_masc:
-        p = db.query(Producto).filter(Producto.id == producto_top_masc.producto_id).first()
+    if producto_top:
+        p = db.query(Producto).filter(Producto.id == producto_top.producto_id).first()
         nombre_producto_top = p.nombre if p else None
 
-    # Talla más vendida por género
     talla_top_hombre = db.query(
         DetalleVenta.talla,
         func.sum(DetalleVenta.cantidad).label("total")
@@ -598,6 +606,7 @@ def dashboard_almacen(almacen_id: int, dias: int = 30, db: Session = Depends(get
     ).filter(
         Venta.almacen_id == almacen_id,
         Venta.fecha >= fecha_inicio,
+        Venta.fecha <= fecha_fin,
         InventarioAlmacenTalla.genero == 'hombre'
     ).group_by(DetalleVenta.talla).order_by(
         func.sum(DetalleVenta.cantidad).desc()
@@ -614,34 +623,35 @@ def dashboard_almacen(almacen_id: int, dias: int = 30, db: Session = Depends(get
     ).filter(
         Venta.almacen_id == almacen_id,
         Venta.fecha >= fecha_inicio,
+        Venta.fecha <= fecha_fin,
         InventarioAlmacenTalla.genero == 'mujer'
     ).group_by(DetalleVenta.talla).order_by(
         func.sum(DetalleVenta.cantidad).desc()
     ).first()
 
-    # Ventas por mes
     ventas_por_mes = db.query(
         extract('month', Venta.fecha).label("mes"),
         func.sum(Venta.total).label("total"),
         func.count(Venta.id).label("cantidad")
     ).filter(
         Venta.almacen_id == almacen_id,
-        Venta.fecha >= fecha_inicio
+        Venta.fecha >= fecha_inicio,
+        Venta.fecha <= fecha_fin
     ).group_by(extract('month', Venta.fecha)).order_by(extract('month', Venta.fecha)).all()
 
     total_ventas_mes = sum(v.total for v in ventas_por_mes) or 1
 
-    # Ventas por día
     ventas_por_dia = db.query(
         extract('dow', Venta.fecha).label("dia"),
         func.count(Venta.id).label("total"),
         func.sum(Venta.total).label("monto")
     ).filter(
         Venta.almacen_id == almacen_id,
-        Venta.fecha >= fecha_inicio
+        Venta.fecha >= fecha_inicio,
+        Venta.fecha <= fecha_fin
     ).group_by(extract('dow', Venta.fecha)).order_by(extract('dow', Venta.fecha)).all()
 
-    total_ventas_dia = sum(v.total for v in ventas_por_dia) or 1
+    total_ventas_dia = sum(v.monto for v in ventas_por_dia) or 1
 
     # ── INVENTARIO ────────────────────────────────────────────────
     total_productos = db.query(func.count(InventarioAlmacen.id)).filter(
@@ -653,7 +663,6 @@ def dashboard_almacen(almacen_id: int, dias: int = 30, db: Session = Depends(get
         InventarioAlmacen.stock < 5
     ).scalar()
 
-    # Costo total del inventario
     inventarios = db.query(InventarioAlmacen).filter(
         InventarioAlmacen.almacen_id == almacen_id
     ).all()
@@ -667,7 +676,8 @@ def dashboard_almacen(almacen_id: int, dias: int = 30, db: Session = Depends(get
     clientes_almacen = db.query(Venta.cliente_id).filter(
         Venta.almacen_id == almacen_id,
         Venta.cliente_id != None,
-        Venta.fecha >= fecha_inicio
+        Venta.fecha >= fecha_inicio,
+        Venta.fecha <= fecha_fin
     ).distinct().all()
     ids_clientes = [c.cliente_id for c in clientes_almacen]
 
@@ -694,7 +704,8 @@ def dashboard_almacen(almacen_id: int, dias: int = 30, db: Session = Depends(get
     ).filter(
         Venta.almacen_id == almacen_id,
         Venta.cliente_id != None,
-        Venta.fecha >= fecha_inicio
+        Venta.fecha >= fecha_inicio,
+        Venta.fecha <= fecha_fin
     ).group_by(Venta.cliente_id).all()
 
     clientes_recurrentes = len([r for r in recurrencia if r.compras > 1])
@@ -703,7 +714,8 @@ def dashboard_almacen(almacen_id: int, dias: int = 30, db: Session = Depends(get
     # ── FINANCIERO ────────────────────────────────────────────────
     ventas_periodo = db.query(func.sum(Venta.total)).filter(
         Venta.almacen_id == almacen_id,
-        Venta.fecha >= fecha_inicio
+        Venta.fecha >= fecha_inicio,
+        Venta.fecha <= fecha_fin
     ).scalar() or 0
 
     ventas_mes = db.query(func.sum(Venta.total)).filter(
@@ -712,12 +724,12 @@ def dashboard_almacen(almacen_id: int, dias: int = 30, db: Session = Depends(get
         extract('year', Venta.fecha) == anio_actual
     ).scalar() or 0
 
-    # Costo de ventas (precio de compra * cantidad vendida)
     detalle_ventas = db.query(DetalleVenta).join(
         Venta, Venta.id == DetalleVenta.venta_id
     ).filter(
         Venta.almacen_id == almacen_id,
-        Venta.fecha >= fecha_inicio
+        Venta.fecha >= fecha_inicio,
+        Venta.fecha <= fecha_fin
     ).all()
 
     costo_ventas = 0
@@ -734,12 +746,14 @@ def dashboard_almacen(almacen_id: int, dias: int = 30, db: Session = Depends(get
         func.count(Venta.id).label("total")
     ).filter(
         Venta.almacen_id == almacen_id,
-        Venta.fecha >= fecha_inicio
+        Venta.fecha >= fecha_inicio,
+        Venta.fecha <= fecha_fin
     ).group_by(Venta.metodo_pago).order_by(func.count(Venta.id).desc()).first()
 
     total_ventas_count = db.query(func.count(Venta.id)).filter(
         Venta.almacen_id == almacen_id,
-        Venta.fecha >= fecha_inicio
+        Venta.fecha >= fecha_inicio,
+        Venta.fecha <= fecha_fin
     ).scalar()
 
     ticket_promedio = round(ventas_periodo / total_ventas_count, 0) if total_ventas_count else 0

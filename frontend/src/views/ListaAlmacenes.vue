@@ -325,11 +325,13 @@ export default {
       dashboardData: null,
       cargandoDashboard: false,
       filtroDias: 30,
-      filtros: [
-        { label: '7 días', dias: 7 },
-        { label: '30 días', dias: 30 },
-        { label: '6 meses', dias: 180 },
-        { label: '1 año', dias: 365 },
+      filtros: [ 
+      { label: 'Hoy', dias: 1 },
+      { label: 'Ayer', dias: 2 },
+      { label: '7 días', dias: 7 },
+      { label: '30 días', dias: 30 },
+      { label: '6 meses', dias: 180 },
+      { label: '1 año', dias: 365 },
       ]
     }
   },
