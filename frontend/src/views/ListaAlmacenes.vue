@@ -266,32 +266,98 @@
             </div>
           </div>
 
-          <!-- Matriz de reposición -->
+          <!-- Matriz scatter -->
           <p class="dash-subtitulo">🎯 Matriz de reposición</p>
           <div class="matriz-leyenda">
             <span class="ml urgente">🔴 Reponer urgente</span>
             <span class="ml vigilar">🟡 Vigilar</span>
             <span class="ml exceso">🔵 Exceso stock</span>
-            <span class="ml revisar">⚪ Revisar</span>
+            <span class="ml revisar">⚫ Revisar</span>
           </div>
 
           <div v-if="dashboardData.inventario.matriz && dashboardData.inventario.matriz.length">
-            <!-- Puntos visuales -->
-            <div class="matriz-ejes">
-              <span class="eje-y">↑ Ventas</span>
-              <div class="matriz-grid">
-                <div
-                  v-for="p in dashboardData.inventario.matriz"
-                  :key="p.sku"
-                  class="matriz-punto"
-                  :class="clasificarProducto(p)"
-                  :title="`${p.nombre} | Stock: ${p.stock} | Ventas: ${p.ventas}`"
-                >
-                  <div class="punto-dot"></div>
-                  <p class="punto-label">{{ p.nombre.length > 10 ? p.nombre.substring(0,10)+'...' : p.nombre }}</p>
-                </div>
-              </div>
-              <span class="eje-x">Stock →</span>
+            <div class="scatter-wrap">
+              <svg :width="scatterW" :height="scatterH" class="scatter-svg">
+
+                <!-- Fondo cuadrantes -->
+                <rect :x="pad" :y="pad" :width="(scatterW-pad*2)/2" :height="(scatterH-pad*2)/2" fill="rgba(55,138,221,0.08)"/>
+                <rect :x="pad+(scatterW-pad*2)/2" :y="pad" :width="(scatterW-pad*2)/2" :height="(scatterH-pad*2)/2" fill="rgba(226,75,74,0.08)"/>
+                <rect :x="pad" :y="pad+(scatterH-pad*2)/2" :width="(scatterW-pad*2)/2" :height="(scatterH-pad*2)/2" fill="rgba(136,135,128,0.08)"/>
+                <rect :x="pad+(scatterW-pad*2)/2" :y="pad+(scatterH-pad*2)/2" :width="(scatterW-pad*2)/2" :height="(scatterH-pad*2)/2" fill="rgba(239,159,39,0.08)"/>
+
+                <!-- Etiquetas cuadrantes -->
+                <text :x="pad+8" :y="pad+16" class="q-label" fill="#185FA5">EXCESO DE STOCK</text>
+                <text :x="pad+(scatterW-pad*2)/2+8" :y="pad+16" class="q-label" fill="#c0392b">REPONER URGENTE</text>
+                <text :x="pad+8" :y="pad+(scatterH-pad*2)/2+16" class="q-label" fill="#555">REVISAR / LIQUIDAR</text>
+                <text :x="pad+(scatterW-pad*2)/2+8" :y="pad+(scatterH-pad*2)/2+16" class="q-label" fill="#856404">VIGILAR</text>
+
+                <!-- Líneas divisorias -->
+                <line :x1="pad+(scatterW-pad*2)/2" :y1="pad" :x2="pad+(scatterW-pad*2)/2" :y2="scatterH-pad" stroke="#bbb" stroke-width="1" stroke-dasharray="5,4"/>
+                <line :x1="pad" :y1="pad+(scatterH-pad*2)/2" :x2="scatterW-pad" :y2="pad+(scatterH-pad*2)/2" stroke="#bbb" stroke-width="1" stroke-dasharray="5,4"/>
+
+                <!-- Ejes -->
+                <line :x1="pad" :y1="pad" :x2="pad" :y2="scatterH-pad" stroke="#ccc" stroke-width="1"/>
+                <line :x1="pad" :y1="scatterH-pad" :x2="scatterW-pad" :y2="scatterH-pad" stroke="#ccc" stroke-width="1"/>
+
+                <!-- Ticks eje X -->
+                <g v-for="(t,i) in xTicks" :key="'x'+i">
+                  <line
+                    :x1="pad + (t/maxStock)*(scatterW-pad*2)"
+                    :y1="scatterH-pad"
+                    :x2="pad + (t/maxStock)*(scatterW-pad*2)"
+                    :y2="scatterH-pad+4"
+                    stroke="#ccc" stroke-width="1"
+                  />
+                  <text
+                    :x="pad + (t/maxStock)*(scatterW-pad*2)"
+                    :y="scatterH-pad+14"
+                    text-anchor="middle" font-size="10" fill="#888"
+                  >{{ t }}</text>
+                </g>
+
+                <!-- Ticks eje Y -->
+                <g v-for="(t,i) in yTicks" :key="'y'+i">
+                  <line
+                    :x1="pad-4"
+                    :y1="scatterH-pad - (t/maxVentas)*(scatterH-pad*2)"
+                    :x2="pad"
+                    :y2="scatterH-pad - (t/maxVentas)*(scatterH-pad*2)"
+                    stroke="#ccc" stroke-width="1"
+                  />
+                  <text
+                    :x="pad-6"
+                    :y="scatterH-pad - (t/maxVentas)*(scatterH-pad*2) + 4"
+                    text-anchor="end" font-size="10" fill="#888"
+                  >{{ t }}</text>
+                </g>
+
+                <!-- Título eje X -->
+                <text :x="scatterW/2" :y="scatterH-2" text-anchor="middle" font-size="11" fill="#888">Stock actual (unidades)</text>
+
+                <!-- Título eje Y -->
+                <text
+                  :x="12" :y="scatterH/2"
+                  text-anchor="middle" font-size="11" fill="#888"
+                  :transform="`rotate(-90, 12, ${scatterH/2})`"
+                >Ventas (unidades)</text>
+
+                <!-- Puntos -->
+                <g v-for="p in dashboardData.inventario.matriz" :key="p.sku">
+                  <circle
+                    :cx="pad + (p.stock/maxStock)*(scatterW-pad*2)"
+                    :cy="scatterH-pad - (p.ventas/maxVentas)*(scatterH-pad*2)"
+                    r="7"
+                    :fill="colorPunto(p)"
+                    fill-opacity="0.85"
+                    stroke="white"
+                    stroke-width="1.5"
+                    class="scatter-punto"
+                  >
+                    <title>{{ p.nombre }} | Stock: {{ p.stock }} | Ventas: {{ p.ventas }}</title>
+                  </circle>
+                </g>
+
+              </svg>
             </div>
 
             <!-- Tabla detalle -->
@@ -391,7 +457,10 @@ export default {
         { label: '30 días', dias: 30,  soloAyer: false },
         { label: '6 meses', dias: 180, soloAyer: false },
         { label: '1 año',   dias: 365, soloAyer: false },
-      ]
+      ],
+      scatterW: 600,
+      scatterH: 400,
+      pad: 50,
     }
   },
   computed: {
@@ -410,15 +479,34 @@ export default {
     maxDia() {
       if (!this.dashboardData || !this.dashboardData.tendencias.ventas_por_dia.length) return 1
       return Math.max(...this.dashboardData.tendencias.ventas_por_dia.map(v => v.total), 1)
-    }
+    },
+    maxStock() {
+      if (!this.dashboardData?.inventario?.matriz?.length) return 10
+      return Math.max(...this.dashboardData.inventario.matriz.map(p => p.stock), 1) * 1.2
+    },
+    maxVentas() {
+      if (!this.dashboardData?.inventario?.matriz?.length) return 10
+      return Math.max(...this.dashboardData.inventario.matriz.map(p => p.ventas), 1) * 1.2
+    },
+    xTicks() {
+      const max = this.maxStock
+      const step = Math.max(Math.ceil(max / 5 / 5) * 5, 1)
+      const ticks = []
+      for (let i = 0; i <= max; i += step) ticks.push(Math.round(i))
+      return ticks
+    },
+    yTicks() {
+      const max = this.maxVentas
+      const step = Math.max(Math.ceil(max / 5 / 5) * 5, 1)
+      const ticks = []
+      for (let i = 0; i <= max; i += step) ticks.push(Math.round(i))
+      return ticks
+    },
   },
   methods: {
     clasificarProducto(p) {
-      const matriz = this.dashboardData.inventario.matriz
-      const maxV = Math.max(...matriz.map(x => x.ventas), 1)
-      const maxS = Math.max(...matriz.map(x => x.stock), 1)
-      const umbralV = maxV * 0.5
-      const umbralS = maxS * 0.5
+      const umbralV = (this.maxVentas / 1.2) * 0.5
+      const umbralS = (this.maxStock / 1.2) * 0.5
       if (p.ventas >= umbralV && p.stock < umbralS) return 'urgente'
       if (p.ventas >= umbralV && p.stock >= umbralS) return 'vigilar'
       if (p.ventas < umbralV && p.stock >= umbralS) return 'exceso'
@@ -430,8 +518,12 @@ export default {
         urgente: '🔴 Reponer urgente',
         vigilar: '🟡 Vigilar',
         exceso:  '🔵 Exceso stock',
-        revisar: '⚪ Revisar'
+        revisar: '⚫ Revisar'
       }[c]
+    },
+    colorPunto(p) {
+      const c = this.clasificarProducto(p)
+      return { urgente: '#E24B4A', vigilar: '#EF9F27', exceso: '#378ADD', revisar: '#888780' }[c]
     },
     async verInventario(almacen) {
       this.almacenSeleccionado = almacen
@@ -715,8 +807,6 @@ tbody tr:hover { background: #D6E4F7; }
 .barra-valor-top { font-size: 9px; color: #555; text-align: center; font-weight: 500; }
 .barra-porcentaje { font-size: 9px; color: #888; text-align: center; }
 .sin-datos { font-size: 13px; color: #888; margin-top: 8px; }
-
-/* Matriz de reposición */
 .matriz-leyenda {
   display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 12px;
 }
@@ -728,26 +818,10 @@ tbody tr:hover { background: #D6E4F7; }
 .ml.vigilar { background: #fff3cd; color: #856404; }
 .ml.exceso  { background: #D6E4F7; color: #1B3A6B; }
 .ml.revisar { background: #F2F4F7; color: #555; }
-.matriz-ejes { margin-bottom: 12px; }
-.eje-y { font-size: 10px; color: #888; display: block; margin-bottom: 6px; }
-.eje-x { font-size: 10px; color: #888; display: block; text-align: right; margin-top: 6px; }
-.matriz-grid {
-  display: flex; flex-wrap: wrap; gap: 10px;
-  background: #F2F4F7; border-radius: 8px;
-  padding: 12px; min-height: 80px;
-}
-.matriz-punto {
-  display: flex; flex-direction: column;
-  align-items: center; gap: 3px; cursor: default;
-}
-.punto-dot {
-  width: 14px; height: 14px; border-radius: 50%;
-}
-.matriz-punto.urgente .punto-dot { background: #E24B4A; }
-.matriz-punto.vigilar .punto-dot { background: #EF9F27; }
-.matriz-punto.exceso  .punto-dot { background: #378ADD; }
-.matriz-punto.revisar .punto-dot { background: #888; }
-.punto-label { font-size: 9px; color: #555; text-align: center; max-width: 60px; }
+.scatter-wrap { overflow-x: auto; margin-bottom: 16px; background: white; border-radius: 8px; padding: 8px; border: 1px solid #eee; }
+.scatter-svg { display: block; min-width: 400px; }
+.scatter-punto { cursor: pointer; }
+.q-label { font-size: 10px; font-weight: 600; letter-spacing: 0.3px; }
 .matriz-tabla { overflow-x: auto; margin-top: 12px; }
 .badge-urgente { background: #fde8e8; color: #c0392b; padding: 2px 8px; border-radius: 10px; font-size: 11px; white-space: nowrap; }
 .badge-vigilar { background: #fff3cd; color: #856404; padding: 2px 8px; border-radius: 10px; font-size: 11px; white-space: nowrap; }
