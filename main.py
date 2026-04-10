@@ -678,11 +678,34 @@ def dashboard_almacen(almacen_id: int, dias: int = 30, solo_ayer: bool = False, 
     inventarios = db.query(InventarioAlmacen).filter(
         InventarioAlmacen.almacen_id == almacen_id
     ).all()
+
     costo_inventario = 0
     for inv in inventarios:
         producto = db.query(Producto).filter(Producto.id == inv.producto_id).first()
         if producto:
             costo_inventario += (producto.precio or 0) * inv.stock
+
+    # ── MATRIZ DE REPOSICIÓN ──────────────────────────────────────
+    matriz = []
+    for inv in inventarios:
+        producto = db.query(Producto).filter(Producto.id == inv.producto_id).first()
+        if not producto:
+            continue
+        ventas_producto = db.query(
+            func.sum(DetalleVenta.cantidad)
+        ).join(Venta, Venta.id == DetalleVenta.venta_id).filter(
+            Venta.almacen_id == almacen_id,
+            Venta.fecha >= fecha_inicio,
+            Venta.fecha <= fecha_fin,
+            DetalleVenta.producto_id == inv.producto_id
+        ).scalar() or 0
+
+        matriz.append({
+            "nombre": producto.nombre,
+            "sku": producto.sku,
+            "stock": inv.stock,
+            "ventas": int(ventas_producto)
+        })
 
     # ── CLIENTES ──────────────────────────────────────────────────
     clientes_almacen = db.query(Venta.cliente_id).filter(
@@ -782,6 +805,7 @@ def dashboard_almacen(almacen_id: int, dias: int = 30, solo_ayer: bool = False, 
             "total_productos": total_productos,
             "stock_bajo": stock_bajo,
             "costo_inventario": round(costo_inventario, 0),
+            "matriz": matriz,
         },
         "clientes": {
             "total_clientes": total_clientes,
