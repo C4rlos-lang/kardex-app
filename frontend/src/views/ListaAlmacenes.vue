@@ -157,6 +157,7 @@
       </div>
       <div class="panel-body" v-else-if="dashboardData">
 
+        <!-- Filtros -->
         <div class="filtros-wrap">
           <button
             v-for="f in filtros" :key="f.label"
@@ -168,6 +169,7 @@
           </button>
         </div>
 
+        <!-- Financiero -->
         <div class="dash-seccion">
           <p class="dash-titulo">💰 Financiero</p>
           <div class="dash-cards">
@@ -202,6 +204,7 @@
           </div>
         </div>
 
+        <!-- Tendencias -->
         <div class="dash-seccion">
           <p class="dash-titulo">📈 Tendencias</p>
           <div class="dash-cards">
@@ -244,6 +247,7 @@
           <p v-else class="sin-datos">Sin ventas en este período</p>
         </div>
 
+        <!-- Inventario + Matriz -->
         <div class="dash-seccion">
           <p class="dash-titulo">📦 Inventario</p>
           <div class="dash-cards">
@@ -261,8 +265,65 @@
               <p class="dash-valor">${{ formatNum(dashboardData.inventario.costo_inventario) }}</p>
             </div>
           </div>
+
+          <!-- Matriz de reposición -->
+          <p class="dash-subtitulo">🎯 Matriz de reposición</p>
+          <div class="matriz-leyenda">
+            <span class="ml urgente">🔴 Reponer urgente</span>
+            <span class="ml vigilar">🟡 Vigilar</span>
+            <span class="ml exceso">🔵 Exceso stock</span>
+            <span class="ml revisar">⚪ Revisar</span>
+          </div>
+
+          <div v-if="dashboardData.inventario.matriz && dashboardData.inventario.matriz.length">
+            <!-- Puntos visuales -->
+            <div class="matriz-ejes">
+              <span class="eje-y">↑ Ventas</span>
+              <div class="matriz-grid">
+                <div
+                  v-for="p in dashboardData.inventario.matriz"
+                  :key="p.sku"
+                  class="matriz-punto"
+                  :class="clasificarProducto(p)"
+                  :title="`${p.nombre} | Stock: ${p.stock} | Ventas: ${p.ventas}`"
+                >
+                  <div class="punto-dot"></div>
+                  <p class="punto-label">{{ p.nombre.length > 10 ? p.nombre.substring(0,10)+'...' : p.nombre }}</p>
+                </div>
+              </div>
+              <span class="eje-x">Stock →</span>
+            </div>
+
+            <!-- Tabla detalle -->
+            <div class="matriz-tabla">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Producto</th>
+                    <th>Stock</th>
+                    <th>Ventas</th>
+                    <th>Estado</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr v-for="p in dashboardData.inventario.matriz" :key="p.sku">
+                    <td>{{ p.nombre }}</td>
+                    <td>{{ p.stock }}</td>
+                    <td>{{ p.ventas }}</td>
+                    <td>
+                      <span :class="'badge-' + clasificarProducto(p)">
+                        {{ etiquetaProducto(p) }}
+                      </span>
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+          <p v-else class="sin-datos">Sin datos suficientes para la matriz</p>
         </div>
 
+        <!-- Clientes -->
         <div class="dash-seccion">
           <p class="dash-titulo">👥 Clientes</p>
           <div class="dash-cards">
@@ -352,6 +413,26 @@ export default {
     }
   },
   methods: {
+    clasificarProducto(p) {
+      const matriz = this.dashboardData.inventario.matriz
+      const maxV = Math.max(...matriz.map(x => x.ventas), 1)
+      const maxS = Math.max(...matriz.map(x => x.stock), 1)
+      const umbralV = maxV * 0.5
+      const umbralS = maxS * 0.5
+      if (p.ventas >= umbralV && p.stock < umbralS) return 'urgente'
+      if (p.ventas >= umbralV && p.stock >= umbralS) return 'vigilar'
+      if (p.ventas < umbralV && p.stock >= umbralS) return 'exceso'
+      return 'revisar'
+    },
+    etiquetaProducto(p) {
+      const c = this.clasificarProducto(p)
+      return {
+        urgente: '🔴 Reponer urgente',
+        vigilar: '🟡 Vigilar',
+        exceso:  '🔵 Exceso stock',
+        revisar: '⚪ Revisar'
+      }[c]
+    },
     async verInventario(almacen) {
       this.almacenSeleccionado = almacen
       this.panelAbierto = true
@@ -634,6 +715,44 @@ tbody tr:hover { background: #D6E4F7; }
 .barra-valor-top { font-size: 9px; color: #555; text-align: center; font-weight: 500; }
 .barra-porcentaje { font-size: 9px; color: #888; text-align: center; }
 .sin-datos { font-size: 13px; color: #888; margin-top: 8px; }
+
+/* Matriz de reposición */
+.matriz-leyenda {
+  display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 12px;
+}
+.ml {
+  font-size: 11px; padding: 3px 10px;
+  border-radius: 12px; font-weight: 500;
+}
+.ml.urgente { background: #fde8e8; color: #c0392b; }
+.ml.vigilar { background: #fff3cd; color: #856404; }
+.ml.exceso  { background: #D6E4F7; color: #1B3A6B; }
+.ml.revisar { background: #F2F4F7; color: #555; }
+.matriz-ejes { margin-bottom: 12px; }
+.eje-y { font-size: 10px; color: #888; display: block; margin-bottom: 6px; }
+.eje-x { font-size: 10px; color: #888; display: block; text-align: right; margin-top: 6px; }
+.matriz-grid {
+  display: flex; flex-wrap: wrap; gap: 10px;
+  background: #F2F4F7; border-radius: 8px;
+  padding: 12px; min-height: 80px;
+}
+.matriz-punto {
+  display: flex; flex-direction: column;
+  align-items: center; gap: 3px; cursor: default;
+}
+.punto-dot {
+  width: 14px; height: 14px; border-radius: 50%;
+}
+.matriz-punto.urgente .punto-dot { background: #E24B4A; }
+.matriz-punto.vigilar .punto-dot { background: #EF9F27; }
+.matriz-punto.exceso  .punto-dot { background: #378ADD; }
+.matriz-punto.revisar .punto-dot { background: #888; }
+.punto-label { font-size: 9px; color: #555; text-align: center; max-width: 60px; }
+.matriz-tabla { overflow-x: auto; margin-top: 12px; }
+.badge-urgente { background: #fde8e8; color: #c0392b; padding: 2px 8px; border-radius: 10px; font-size: 11px; white-space: nowrap; }
+.badge-vigilar { background: #fff3cd; color: #856404; padding: 2px 8px; border-radius: 10px; font-size: 11px; white-space: nowrap; }
+.badge-exceso  { background: #D6E4F7; color: #1B3A6B; padding: 2px 8px; border-radius: 10px; font-size: 11px; white-space: nowrap; }
+.badge-revisar { background: #F2F4F7; color: #555; padding: 2px 8px; border-radius: 10px; font-size: 11px; white-space: nowrap; }
 
 @media (max-width: 900px) {
   .panel-wide { width: 100vw; right: -100vw; }
