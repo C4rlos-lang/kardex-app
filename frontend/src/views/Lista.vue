@@ -41,6 +41,9 @@
           <td>{{ producto.stock }}</td>
           <td>
             <div style="display:flex; gap:6px; flex-wrap:wrap;">
+              <button class="btn-entrada-row" @click="abrirEntrada(producto)">
+                📥 Entrada
+              </button>
               <button class="btn-transferir-row" @click="abrirTransferencia(producto)">
                 📦 Transferir
               </button>
@@ -70,6 +73,46 @@
         Página {{ paginaActual }} de {{ totalPaginas }} 
         ({{ productosFiltrados.length }} productos)
       </span>
+    </div>
+
+    <!-- Overlay entrada -->
+    <div class="overlay" v-if="panelEntradaAbierto" @click.self="panelEntradaAbierto = false"></div>
+
+    <!-- Panel entrada -->
+    <div class="panel" :class="{ abierto: panelEntradaAbierto }">
+      <div class="panel-header">
+        <h2>📥 Entrada — {{ productoEntrada?.nombre }}</h2>
+        <button class="cerrar" @click="panelEntradaAbierto = false">✕</button>
+      </div>
+      <div class="panel-body">
+        <p v-if="cargandoTallasEntrada">Cargando tallas...</p>
+        <div v-else>
+          <div class="campo">
+            <label>Talla</label>
+            <select v-model="entrada.talla">
+              <option value="">Selecciona una talla...</option>
+              <option v-for="t in tallasEntrada" :key="t.id" :value="t.talla">
+                Talla {{ t.talla }} - {{ t.genero }} (Stock actual: {{ t.unidades }})
+              </option>
+            </select>
+          </div>
+          <div class="campo">
+            <label>Cantidad a ingresar</label>
+            <input
+              v-model.number="entrada.cantidad"
+              type="number"
+              min="1"
+              placeholder="Ej: 10"
+            />
+          </div>
+          <button class="btn-confirmar" @click="confirmarEntrada" :disabled="cargandoEntrada">
+            {{ cargandoEntrada ? 'Registrando...' : '✅ Confirmar entrada' }}
+          </button>
+          <p v-if="mensajeEntrada" :class="exitoEntrada ? 'exito' : 'error'">
+            {{ mensajeEntrada }}
+          </p>
+        </div>
+      </div>
     </div>
 
     <!-- Overlay transferencia -->
@@ -219,7 +262,15 @@ export default {
       panelTallasAbierto: false,
       productoTallas: null,
       tallasVista: [],
-      cargandoTallasVista: false
+      cargandoTallasVista: false,
+      panelEntradaAbierto: false,
+      productoEntrada: null,
+      tallasEntrada: [],
+      cargandoTallasEntrada: false,
+      entrada: { talla: '', genero: '', cantidad: 0 },
+      mensajeEntrada: '',
+      exitoEntrada: false,
+      cargandoEntrada: false
     }
   },
   computed: {
@@ -249,6 +300,49 @@ export default {
     irAPagina(pagina) { this.paginaActual = pagina },
     paginaAnterior() { if (this.paginaActual > 1) this.paginaActual-- },
     paginaSiguiente() { if (this.paginaActual < this.totalPaginas) this.paginaActual++ },
+    async abrirEntrada(producto) {
+      this.productoEntrada = producto
+      this.panelEntradaAbierto = true
+      this.entrada = { talla: '', genero: '', cantidad: 0 }
+      this.mensajeEntrada = ''
+      this.cargandoTallasEntrada = true
+      try {
+        const { data } = await axios.get(`${API}/productos/${producto.id}/tallas`)
+        this.tallasEntrada = data
+      } catch (error) {
+        console.error('Error', error)
+      }
+      this.cargandoTallasEntrada = false
+    },
+    async confirmarEntrada() {
+      if (!this.entrada.talla || !this.entrada.cantidad) {
+        this.mensajeEntrada = 'Por favor selecciona talla y cantidad'
+        this.exitoEntrada = false
+        return
+      }
+      this.cargandoEntrada = true
+      try {
+        await axios.post(`${API}/entradas`, {
+          producto_id: this.productoEntrada.id,
+          talla: this.entrada.talla,
+          genero: this.tallasEntrada.find(t => t.talla === this.entrada.talla)?.genero || '',
+          cantidad: parseInt(this.entrada.cantidad)
+        })
+        this.mensajeEntrada = '¡Entrada registrada exitosamente!'
+        this.exitoEntrada = true
+        this.entrada = { talla: '', genero: '', cantidad: 0 }
+        const { data } = await axios.get(`${API}/productos`)
+        this.productos = data.sort((a, b) =>
+          new Date(b.fecha_registro) - new Date(a.fecha_registro)
+        )
+        const res = await axios.get(`${API}/productos/${this.productoEntrada.id}/tallas`)
+        this.tallasEntrada = res.data
+      } catch (error) {
+        this.mensajeEntrada = error.response?.data?.detail || 'Error al registrar entrada'
+        this.exitoEntrada = false
+      }
+      this.cargandoEntrada = false
+    },
     abrirTransferencia(producto) {
       this.transferencia.producto_id = producto.id
       this.panelAbierto = true
@@ -390,6 +484,11 @@ h1 { margin-bottom: 16px; color: #1B3A6B; }
   width: 100%; max-width: 500px;
   padding: 10px 14px; font-size: 15px;
   border: 1px solid #ccc; border-radius: 8px;
+}
+.btn-entrada-row {
+  padding: 5px 10px; background: #1E7E50;
+  color: white; border: none;
+  border-radius: 6px; cursor: pointer; font-size: 12px;
 }
 .btn-transferir-row {
   padding: 5px 10px; background: #2E5FA3;
