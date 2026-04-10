@@ -216,6 +216,13 @@ class MaestraSchema(BaseModel):
     activo:             Optional[bool] = True
     genero_relacionado: Optional[str] = None
 
+
+class EntradaSchema(BaseModel):
+    producto_id: int
+    talla:       str
+    genero:      str
+    cantidad:    int
+
 # ── 4. Sesión ─────────────────────────────────────────────────────
 def get_db():
     db = SessionLocal()
@@ -884,3 +891,33 @@ def eliminar_maestra(id: int, db: Session = Depends(get_db)):
     db.delete(m)
     db.commit()
     return {"mensaje": "Eliminado"}
+
+@app.post("/entradas")
+def entrada_mercancia(entrada: EntradaSchema, db: Session = Depends(get_db)):
+    producto = db.query(Producto).filter(Producto.id == entrada.producto_id).first()
+    if not producto:
+        raise HTTPException(status_code=404, detail="Producto no encontrado")
+
+    # Actualizar stock del producto
+    producto.stock += entrada.cantidad
+
+    # Actualizar talla en producto_tallas
+    talla = db.query(ProductoTalla).filter(
+        ProductoTalla.producto_id == entrada.producto_id,
+        ProductoTalla.talla == entrada.talla,
+        ProductoTalla.genero == entrada.genero
+    ).first()
+
+    if talla:
+        talla.unidades += entrada.cantidad
+    else:
+        talla = ProductoTalla(
+            producto_id=entrada.producto_id,
+            genero=entrada.genero,
+            talla=entrada.talla,
+            unidades=entrada.cantidad
+        )
+        db.add(talla)
+
+    db.commit()
+    return {"mensaje": "Entrada registrada", "stock_actual": producto.stock}
