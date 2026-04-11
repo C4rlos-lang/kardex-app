@@ -74,7 +74,7 @@ export default {
   data() {
     return {
       tipoActivo: 'categoria',
-      tipos: tipos: [
+      tipos: [
         { key: 'categoria', label: 'Categorías' },
         { key: 'marca', label: 'Marcas' },
         { key: 'proveedor', label: 'Proveedores' },
