@@ -685,12 +685,14 @@ def dashboard_almacen(almacen_id: int, dias: int = 30, solo_ayer: bool = False, 
         if producto:
             costo_inventario += (producto.precio or 0) * inv.stock
 
-    # ── MATRIZ DE REPOSICIÓN ──────────────────────────────────────
+    # ── MATRIZ DE REPOSICIÓN + DOH ────────────────────────────────
     matriz = []
     for inv in inventarios:
         producto = db.query(Producto).filter(Producto.id == inv.producto_id).first()
         if not producto:
             continue
+
+        # Ventas en el período seleccionado
         ventas_producto = db.query(
             func.sum(DetalleVenta.cantidad)
         ).join(Venta, Venta.id == DetalleVenta.venta_id).filter(
@@ -700,11 +702,30 @@ def dashboard_almacen(almacen_id: int, dias: int = 30, solo_ayer: bool = False, 
             DetalleVenta.producto_id == inv.producto_id
         ).scalar() or 0
 
+        # Ventas últimos 30 días fijos para calcular DOH
+        ventas_30 = db.query(
+            func.sum(DetalleVenta.cantidad)
+        ).join(Venta, Venta.id == DetalleVenta.venta_id).filter(
+            Venta.almacen_id == almacen_id,
+            Venta.fecha >= hoy - timedelta(days=30),
+            Venta.fecha <= hoy,
+            DetalleVenta.producto_id == inv.producto_id
+        ).scalar() or 0
+
+        # DOH = días de inventario disponibles
+        if ventas_30 > 0:
+            doh = round((inv.stock / ventas_30) * 30, 1)
+        else:
+            doh = None
+
         matriz.append({
             "nombre": producto.nombre,
             "sku": producto.sku,
             "stock": inv.stock,
-            "ventas": int(ventas_producto)
+            "ventas": int(ventas_producto),
+            "ventas_30": int(ventas_30),
+            "doh": doh,
+            "baja_rotacion": ventas_30 == 0
         })
 
     # ── CLIENTES ──────────────────────────────────────────────────
