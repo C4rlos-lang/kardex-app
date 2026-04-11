@@ -273,6 +273,7 @@
             <span class="ml vigilar">🟡 Vigilar</span>
             <span class="ml exceso">🔵 Exceso stock</span>
             <span class="ml revisar">⚫ Revisar</span>
+            <span class="ml baja">⚠️ Baja rotación</span>
           </div>
 
           <div v-if="dashboardData.inventario.matriz && dashboardData.inventario.matriz.length">
@@ -280,13 +281,9 @@
               <svg :width="scatterW" :height="scatterH" class="scatter-svg">
 
                 <!-- Fondo cuadrantes X=ventas Y=stock -->
-                <!-- Arriba-izq: bajas ventas, alto stock = EXCESO -->
                 <rect :x="pad" :y="pad" :width="(scatterW-pad*2)/2" :height="(scatterH-pad*2)/2" fill="rgba(55,138,221,0.08)"/>
-                <!-- Arriba-der: altas ventas, alto stock = VIGILAR -->
                 <rect :x="pad+(scatterW-pad*2)/2" :y="pad" :width="(scatterW-pad*2)/2" :height="(scatterH-pad*2)/2" fill="rgba(239,159,39,0.08)"/>
-                <!-- Abajo-izq: bajas ventas, bajo stock = REVISAR -->
                 <rect :x="pad" :y="pad+(scatterH-pad*2)/2" :width="(scatterW-pad*2)/2" :height="(scatterH-pad*2)/2" fill="rgba(136,135,128,0.08)"/>
-                <!-- Abajo-der: altas ventas, bajo stock = REPONER URGENTE -->
                 <rect :x="pad+(scatterW-pad*2)/2" :y="pad+(scatterH-pad*2)/2" :width="(scatterW-pad*2)/2" :height="(scatterH-pad*2)/2" fill="rgba(226,75,74,0.08)"/>
 
                 <!-- Etiquetas cuadrantes -->
@@ -305,45 +302,21 @@
 
                 <!-- Ticks eje X = Ventas -->
                 <g v-for="(t,i) in ventasTicks" :key="'x'+i">
-                  <line
-                    :x1="pad + (t/maxVentas)*(scatterW-pad*2)"
-                    :y1="scatterH-pad"
-                    :x2="pad + (t/maxVentas)*(scatterW-pad*2)"
-                    :y2="scatterH-pad+4"
-                    stroke="#ccc" stroke-width="1"
-                  />
-                  <text
-                    :x="pad + (t/maxVentas)*(scatterW-pad*2)"
-                    :y="scatterH-pad+14"
-                    text-anchor="middle" font-size="10" fill="#888"
-                  >{{ t }}</text>
+                  <line :x1="pad + (t/maxVentas)*(scatterW-pad*2)" :y1="scatterH-pad" :x2="pad + (t/maxVentas)*(scatterW-pad*2)" :y2="scatterH-pad+4" stroke="#ccc" stroke-width="1"/>
+                  <text :x="pad + (t/maxVentas)*(scatterW-pad*2)" :y="scatterH-pad+14" text-anchor="middle" font-size="10" fill="#888">{{ t }}</text>
                 </g>
 
                 <!-- Ticks eje Y = Stock -->
                 <g v-for="(t,i) in stockTicks" :key="'y'+i">
-                  <line
-                    :x1="pad-4"
-                    :y1="scatterH-pad - (t/maxStock)*(scatterH-pad*2)"
-                    :x2="pad"
-                    :y2="scatterH-pad - (t/maxStock)*(scatterH-pad*2)"
-                    stroke="#ccc" stroke-width="1"
-                  />
-                  <text
-                    :x="pad-6"
-                    :y="scatterH-pad - (t/maxStock)*(scatterH-pad*2) + 4"
-                    text-anchor="end" font-size="10" fill="#888"
-                  >{{ t }}</text>
+                  <line :x1="pad-4" :y1="scatterH-pad - (t/maxStock)*(scatterH-pad*2)" :x2="pad" :y2="scatterH-pad - (t/maxStock)*(scatterH-pad*2)" stroke="#ccc" stroke-width="1"/>
+                  <text :x="pad-6" :y="scatterH-pad - (t/maxStock)*(scatterH-pad*2) + 4" text-anchor="end" font-size="10" fill="#888">{{ t }}</text>
                 </g>
 
                 <!-- Título eje X -->
                 <text :x="scatterW/2" :y="scatterH-2" text-anchor="middle" font-size="11" fill="#888">Ventas mensuales (unidades)</text>
 
                 <!-- Título eje Y -->
-                <text
-                  :x="12" :y="scatterH/2"
-                  text-anchor="middle" font-size="11" fill="#888"
-                  :transform="`rotate(-90, 12, ${scatterH/2})`"
-                >Stock actual (unidades)</text>
+                <text :x="12" :y="scatterH/2" text-anchor="middle" font-size="11" fill="#888" :transform="`rotate(-90, 12, ${scatterH/2})`">Stock actual (unidades)</text>
 
                 <!-- Puntos: X=ventas, Y=stock -->
                 <g v-for="p in dashboardData.inventario.matriz" :key="p.sku">
@@ -357,29 +330,39 @@
                     stroke-width="1.5"
                     class="scatter-punto"
                   >
-                    <title>{{ p.nombre }} | Stock: {{ p.stock }} | Ventas: {{ p.ventas }}</title>
+                    <title>{{ p.nombre }} | Stock: {{ p.stock }} | Ventas: {{ p.ventas }} | DOH: {{ p.doh ? p.doh + ' días' : 'Baja rotación' }}</title>
                   </circle>
                 </g>
 
               </svg>
             </div>
 
-            <!-- Tabla detalle -->
+            <!-- Tabla detalle con DOH -->
             <div class="matriz-tabla">
               <table>
                 <thead>
                   <tr>
                     <th>Producto</th>
                     <th>Stock</th>
-                    <th>Ventas</th>
+                    <th>Ventas 30d</th>
+                    <th>DOH</th>
                     <th>Estado</th>
                   </tr>
                 </thead>
                 <tbody>
-                  <tr v-for="p in dashboardData.inventario.matriz" :key="p.sku">
+                  <tr
+                    v-for="p in dashboardData.inventario.matriz" :key="p.sku"
+                    :class="{ 'fila-baja-rotacion': p.baja_rotacion }"
+                  >
                     <td>{{ p.nombre }}</td>
                     <td>{{ p.stock }}</td>
-                    <td>{{ p.ventas }}</td>
+                    <td>{{ p.ventas_30 }}</td>
+                    <td>
+                      <span v-if="p.baja_rotacion" class="badge-baja-rotacion">⚠️ Baja rotación</span>
+                      <span v-else-if="p.doh <= 7" class="badge-doh-critico">🔴 {{ p.doh }}d</span>
+                      <span v-else-if="p.doh <= 15" class="badge-doh-alerta">🟡 {{ p.doh }}d</span>
+                      <span v-else class="badge-doh-ok">🟢 {{ p.doh }}d</span>
+                    </td>
                     <td>
                       <span :class="'badge-' + clasificarProducto(p)">
                         {{ etiquetaProducto(p) }}
@@ -526,6 +509,7 @@ export default {
       }[c]
     },
     colorPunto(p) {
+      if (p.baja_rotacion) return '#F39C12'
       const c = this.clasificarProducto(p)
       return { urgente: '#E24B4A', vigilar: '#EF9F27', exceso: '#378ADD', revisar: '#888780' }[c]
     },
@@ -546,9 +530,7 @@ export default {
       this.panelTallasAbierto = true
       this.cargandoTallas = true
       try {
-        const { data } = await axios.get(
-          `${API}/almacenes/${this.almacenSeleccionado.id}/productos/${item.id}/tallas`
-        )
+        const { data } = await axios.get(`${API}/almacenes/${this.almacenSeleccionado.id}/productos/${item.id}/tallas`)
         this.tallasVista = data
       } catch (error) {
         console.error('Error', error)
@@ -560,9 +542,7 @@ export default {
       this.panelEtiquetasAbierto = true
       this.cargandoEtiquetas = true
       try {
-        const { data } = await axios.get(
-          `${API}/almacenes/${this.almacenSeleccionado.id}/productos/${item.id}/tallas`
-        )
+        const { data } = await axios.get(`${API}/almacenes/${this.almacenSeleccionado.id}/productos/${item.id}/tallas`)
         this.tallasEtiquetas = data
         this.$nextTick(() => { this.generarQRs() })
       } catch (error) {
@@ -580,12 +560,8 @@ export default {
     async cargarDashboard() {
       this.cargandoDashboard = true
       try {
-        const params = this.filtroSoloAyer
-          ? `dias=1&solo_ayer=true`
-          : `dias=${this.filtroDias}`
-        const { data } = await axios.get(
-          `${API}/dashboard/${this.almacenDashboard.id}?${params}`
-        )
+        const params = this.filtroSoloAyer ? `dias=1&solo_ayer=true` : `dias=${this.filtroDias}`
+        const { data } = await axios.get(`${API}/dashboard/${this.almacenDashboard.id}?${params}`)
         this.dashboardData = data
       } catch (error) {
         console.error('Error cargando dashboard', error)
@@ -639,12 +615,8 @@ export default {
       const ventana = window.open(url, '_blank')
       if (!ventana) alert('Por favor permite las ventanas emergentes para imprimir')
     },
-    alturaBarra(valor, max) {
-      return Math.max((valor / max) * 100, 4)
-    },
-    formatNum(n) {
-      return Number(n).toLocaleString('es-CO')
-    },
+    alturaBarra(valor, max) { return Math.max((valor / max) * 100, 4) },
+    formatNum(n) { return Number(n).toLocaleString('es-CO') },
     nombreMes(n) {
       const meses = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic']
       return meses[n - 1] || n
@@ -677,114 +649,45 @@ thead { background: #1B3A6B; color: white; }
 th, td { padding: 12px 16px; text-align: left; font-size: 14px; }
 tbody tr:nth-child(even) { background: #F2F4F7; }
 tbody tr:hover { background: #D6E4F7; }
-.activo {
-  background: #d4edda; color: #1E7E50;
-  padding: 4px 10px; border-radius: 12px; font-size: 13px;
-}
-.inactivo {
-  background: #f8d7da; color: #c0392b;
-  padding: 4px 10px; border-radius: 12px; font-size: 13px;
-}
-.btn-ver {
-  padding: 6px 12px; background: #2E5FA3;
-  color: white; border: none;
-  border-radius: 6px; cursor: pointer; font-size: 13px;
-}
-.btn-dashboard {
-  padding: 6px 12px; background: #1B3A6B;
-  color: white; border: none;
-  border-radius: 6px; cursor: pointer; font-size: 13px;
-}
+.activo { background: #d4edda; color: #1E7E50; padding: 4px 10px; border-radius: 12px; font-size: 13px; }
+.inactivo { background: #f8d7da; color: #c0392b; padding: 4px 10px; border-radius: 12px; font-size: 13px; }
+.btn-ver { padding: 6px 12px; background: #2E5FA3; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 13px; }
+.btn-dashboard { padding: 6px 12px; background: #1B3A6B; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 13px; }
 .btn-dashboard:hover { background: #2E5FA3; }
-.btn-etiqueta {
-  padding: 5px 10px; background: #1E7E50;
-  color: white; border: none;
-  border-radius: 6px; cursor: pointer; font-size: 12px;
-}
-.btn-tallas {
-  padding: 5px 10px; background: #8C9BAB;
-  color: white; border: none;
-  border-radius: 6px; cursor: pointer; font-size: 12px;
-}
-.overlay {
-  position: fixed; top: 0; left: 0;
-  width: 100%; height: 100%;
-  background: rgba(0,0,0,0.3); z-index: 100;
-}
+.btn-etiqueta { padding: 5px 10px; background: #1E7E50; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 12px; }
+.btn-tallas { padding: 5px 10px; background: #8C9BAB; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 12px; }
+.overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.3); z-index: 100; }
 .panel {
-  position: fixed; top: 0; right: -700px;
-  width: 700px; height: 100%;
-  background: white;
-  box-shadow: -4px 0 20px rgba(0,0,0,0.15);
-  z-index: 101; transition: right 0.3s ease;
-  display: flex; flex-direction: column;
+  position: fixed; top: 0; right: -700px; width: 700px; height: 100%;
+  background: white; box-shadow: -4px 0 20px rgba(0,0,0,0.15);
+  z-index: 101; transition: right 0.3s ease; display: flex; flex-direction: column;
 }
 .panel-wide { width: 850px; right: -850px; }
 .panel.abierto { right: 0; }
-.panel-header {
-  display: flex; justify-content: space-between;
-  align-items: center; padding: 20px 24px;
-  background: #1B3A6B; color: white;
-}
+.panel-header { display: flex; justify-content: space-between; align-items: center; padding: 20px 24px; background: #1B3A6B; color: white; }
 .panel-header h2 { margin: 0; font-size: 18px; color: white; }
-.cerrar {
-  background: none; border: none;
-  color: white; font-size: 20px; cursor: pointer;
-}
+.cerrar { background: none; border: none; color: white; font-size: 20px; cursor: pointer; }
 .panel-body { padding: 24px; overflow-y: auto; flex: 1; }
 .tabla-scroll { overflow-x: auto; }
 .tabla-inventario { margin-top: 0; min-width: 600px; }
 .foto { width: 40px; height: 40px; object-fit: cover; border-radius: 4px; }
-.talla-badge {
-  background: #D6E4F7; color: #1B3A6B;
-  padding: 2px 10px; border-radius: 20px;
-  font-weight: 500; font-size: 14px;
-}
-.btn-imprimir {
-  padding: 8px 16px; background: #1B3A6B;
-  color: white; border: none;
-  border-radius: 6px; cursor: pointer;
-  font-size: 14px; margin-bottom: 16px;
-}
+.talla-badge { background: #D6E4F7; color: #1B3A6B; padding: 2px 10px; border-radius: 20px; font-weight: 500; font-size: 14px; }
+.btn-imprimir { padding: 8px 16px; background: #1B3A6B; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 14px; margin-bottom: 16px; }
 .etiquetas-wrap { display: flex; flex-wrap: wrap; gap: 16px; }
-.etiqueta {
-  border: 1px solid #ccc; border-radius: 8px;
-  padding: 12px; width: 150px; text-align: center;
-  display: flex; flex-direction: column;
-  align-items: center; gap: 6px;
-}
+.etiqueta { border: 1px solid #ccc; border-radius: 8px; padding: 12px; width: 150px; text-align: center; display: flex; flex-direction: column; align-items: center; gap: 6px; }
 .et-nombre { font-size: 12px; font-weight: 500; color: #333; }
 .et-sku { font-size: 10px; color: #888; }
-.et-talla {
-  font-size: 18px; font-weight: 500;
-  color: #185FA5; background: #E6F1FB;
-  padding: 2px 12px; border-radius: 20px;
-}
+.et-talla { font-size: 18px; font-weight: 500; color: #185FA5; background: #E6F1FB; padding: 2px 12px; border-radius: 20px; }
 .qr-canvas { width: 80px !important; height: 80px !important; }
 .et-codigo { font-size: 9px; color: #999; }
-.filtros-wrap {
-  display: flex; gap: 8px;
-  margin-bottom: 20px; flex-wrap: wrap;
-}
-.filtro-btn {
-  padding: 6px 14px; border: 1px solid #ccc;
-  background: white; border-radius: 20px;
-  cursor: pointer; font-size: 13px; color: #555;
-}
-.filtro-btn.activo {
-  background: #1B3A6B; color: white; border-color: #1B3A6B;
-}
-.dash-seccion {
-  margin-bottom: 24px; padding-bottom: 24px;
-  border-bottom: 1px solid #eee;
-}
+.filtros-wrap { display: flex; gap: 8px; margin-bottom: 20px; flex-wrap: wrap; }
+.filtro-btn { padding: 6px 14px; border: 1px solid #ccc; background: white; border-radius: 20px; cursor: pointer; font-size: 13px; color: #555; }
+.filtro-btn.activo { background: #1B3A6B; color: white; border-color: #1B3A6B; }
+.dash-seccion { margin-bottom: 24px; padding-bottom: 24px; border-bottom: 1px solid #eee; }
 .dash-titulo { font-size: 15px; font-weight: 600; color: #1B3A6B; margin-bottom: 12px; }
 .dash-subtitulo { font-size: 13px; color: #555; margin: 16px 0 8px; font-weight: 500; }
 .dash-cards { display: flex; flex-wrap: wrap; gap: 12px; }
-.dash-card {
-  background: #F2F4F7; border-radius: 8px;
-  padding: 12px 16px; min-width: 120px; flex: 1;
-}
+.dash-card { background: #F2F4F7; border-radius: 8px; padding: 12px 16px; min-width: 120px; flex: 1; }
 .dash-card.verde { background: #d4edda; }
 .dash-card.alerta { background: #fff3cd; }
 .dash-card.naranja-card { background: #fff3cd; }
@@ -795,43 +698,35 @@ tbody tr:hover { background: #D6E4F7; }
 .dash-valor.azul { color: #2E5FA3; }
 .dash-sub { font-size: 10px; color: #888; margin-top: 4px; }
 .barras-container { overflow-x: auto; }
-.barras {
-  display: flex; align-items: flex-end;
-  gap: 8px; height: 160px;
-  border-bottom: 2px solid #eee;
-  padding-bottom: 4px; min-width: 300px;
-}
+.barras { display: flex; align-items: flex-end; gap: 8px; height: 160px; border-bottom: 2px solid #eee; padding-bottom: 4px; min-width: 300px; }
 .barra-wrap { display: flex; flex-direction: column; align-items: center; gap: 2px; flex: 1; min-width: 40px; }
-.barra {
-  width: 100%; background: #2E5FA3;
-  border-radius: 4px 4px 0 0; min-height: 4px;
-}
+.barra { width: 100%; background: #2E5FA3; border-radius: 4px 4px 0 0; min-height: 4px; }
 .barra-dia { background: #1E7E50; }
 .barra-label { font-size: 10px; color: #888; }
 .barra-valor-top { font-size: 9px; color: #555; text-align: center; font-weight: 500; }
 .barra-porcentaje { font-size: 9px; color: #888; text-align: center; }
 .sin-datos { font-size: 13px; color: #888; margin-top: 8px; }
-.matriz-leyenda {
-  display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 12px;
-}
+.matriz-leyenda { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 12px; }
 .ml { font-size: 11px; padding: 3px 10px; border-radius: 12px; font-weight: 500; }
 .ml.urgente { background: #fde8e8; color: #c0392b; }
 .ml.vigilar  { background: #fff3cd; color: #856404; }
 .ml.exceso   { background: #D6E4F7; color: #1B3A6B; }
 .ml.revisar  { background: #F2F4F7; color: #555; }
-.scatter-wrap {
-  overflow-x: auto; margin-bottom: 16px;
-  background: white; border-radius: 8px;
-  padding: 8px; border: 1px solid #eee;
-}
+.ml.baja     { background: #fff3cd; color: #856404; }
+.scatter-wrap { overflow-x: auto; margin-bottom: 16px; background: white; border-radius: 8px; padding: 8px; border: 1px solid #eee; }
 .scatter-svg { display: block; min-width: 400px; }
 .scatter-punto { cursor: pointer; }
 .q-label { font-size: 10px; font-weight: 600; letter-spacing: 0.3px; }
 .matriz-tabla { overflow-x: auto; margin-top: 12px; }
+.fila-baja-rotacion { background: #fffbf0 !important; }
 .badge-urgente { background: #fde8e8; color: #c0392b; padding: 2px 8px; border-radius: 10px; font-size: 11px; white-space: nowrap; }
 .badge-vigilar { background: #fff3cd; color: #856404; padding: 2px 8px; border-radius: 10px; font-size: 11px; white-space: nowrap; }
 .badge-exceso  { background: #D6E4F7; color: #1B3A6B; padding: 2px 8px; border-radius: 10px; font-size: 11px; white-space: nowrap; }
-.badge-revisar { background: #F2F4F7; color: #555;    padding: 2px 8px; border-radius: 10px; font-size: 11px; white-space: nowrap; }
+.badge-revisar { background: #F2F4F7; color: #555; padding: 2px 8px; border-radius: 10px; font-size: 11px; white-space: nowrap; }
+.badge-baja-rotacion { background: #fff3cd; color: #856404; padding: 2px 8px; border-radius: 10px; font-size: 11px; white-space: nowrap; }
+.badge-doh-critico { background: #fde8e8; color: #c0392b; padding: 2px 8px; border-radius: 10px; font-size: 11px; white-space: nowrap; }
+.badge-doh-alerta  { background: #fff3cd; color: #856404; padding: 2px 8px; border-radius: 10px; font-size: 11px; white-space: nowrap; }
+.badge-doh-ok      { background: #d4edda; color: #1E7E50; padding: 2px 8px; border-radius: 10px; font-size: 11px; white-space: nowrap; }
 
 @media (max-width: 900px) {
   .panel-wide { width: 100vw; right: -100vw; }
