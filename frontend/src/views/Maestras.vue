@@ -74,12 +74,13 @@ export default {
   data() {
     return {
       tipoActivo: 'categoria',
-      tipos: [
+      tipos: tipos: [
         { key: 'categoria', label: 'Categorías' },
         { key: 'marca', label: 'Marcas' },
         { key: 'proveedor', label: 'Proveedores' },
         { key: 'genero', label: 'Géneros' },
         { key: 'talla', label: 'Tallas' },
+        { key: 'metodo_pago', label: 'Métodos de pago' },
       ],
       items: [],
       cargando: false,
