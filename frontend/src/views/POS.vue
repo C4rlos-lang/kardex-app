@@ -260,7 +260,7 @@ export default {
       cargandoTallas: false,
       carrito: [],
       metodoPago: '',
-      metodosPago: ['Efectivo', 'Tarjeta', 'Nequi', 'Brew B', 'Daviplata'],
+      metodosPago: [],
       cargandoVenta: false,
       mensajeVenta: '',
       exitoVenta: false,
@@ -440,10 +440,14 @@ export default {
   },
   async mounted() {
     try {
-      const { data } = await axios.get(`${API}/almacenes`)
-      this.almacenes = data.filter(a => a.estado === 'activo')
+      const [almacenesRes, metodosRes] = await Promise.all([
+        axios.get(`${API}/almacenes`),
+        axios.get(`${API}/maestras/metodo_pago`)
+      ])
+      this.almacenes = almacenesRes.data.filter(a => a.estado === 'activo')
+      this.metodosPago = metodosRes.data.filter(m => m.activo).map(m => m.valor)
     } catch (error) {
-      console.error('Error cargando almacenes', error)
+      console.error('Error cargando datos', error)
     }
   }
 }
