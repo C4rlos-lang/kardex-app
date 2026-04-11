@@ -207,8 +207,8 @@ export default {
         { key: 'genero',       label: 'Géneros' },
         { key: 'talla',        label: 'Tallas' },
         { key: 'metodo_pago',  label: 'Métodos de pago' },
-        { key: 'producto',     label: '➕ Producto' },
-        { key: 'almacen',      label: '🏪 Almacén' },
+        { key: 'producto',     label: 'Producto' },
+        { key: 'almacen',      label: 'Almacén' },
       ],
       // Maestras simples
       items: [],
