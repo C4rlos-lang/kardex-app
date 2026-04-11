@@ -266,8 +266,8 @@
             </div>
           </div>
 
-          <!-- Matriz scatter -->
-          <p class="dash-subtitulo">🎯 Matriz de reposición</p>
+          <!-- Matriz scatter resumida -->
+          <p class="dash-subtitulo">🎯 Matriz de reposición — Top 5 críticos</p>
           <div class="matriz-leyenda">
             <span class="ml urgente">🔴 Reponer urgente</span>
             <span class="ml vigilar">🟡 Vigilar</span>
@@ -277,67 +277,6 @@
           </div>
 
           <div v-if="dashboardData.inventario.matriz && dashboardData.inventario.matriz.length">
-            <div class="scatter-wrap">
-              <svg :width="scatterW" :height="scatterH" class="scatter-svg">
-
-                <!-- Fondo cuadrantes X=ventas Y=stock -->
-                <rect :x="pad" :y="pad" :width="(scatterW-pad*2)/2" :height="(scatterH-pad*2)/2" fill="rgba(55,138,221,0.08)"/>
-                <rect :x="pad+(scatterW-pad*2)/2" :y="pad" :width="(scatterW-pad*2)/2" :height="(scatterH-pad*2)/2" fill="rgba(239,159,39,0.08)"/>
-                <rect :x="pad" :y="pad+(scatterH-pad*2)/2" :width="(scatterW-pad*2)/2" :height="(scatterH-pad*2)/2" fill="rgba(136,135,128,0.08)"/>
-                <rect :x="pad+(scatterW-pad*2)/2" :y="pad+(scatterH-pad*2)/2" :width="(scatterW-pad*2)/2" :height="(scatterH-pad*2)/2" fill="rgba(226,75,74,0.08)"/>
-
-                <!-- Etiquetas cuadrantes -->
-                <text :x="pad+8" :y="pad+16" class="q-label" fill="#185FA5">EXCESO DE STOCK</text>
-                <text :x="pad+(scatterW-pad*2)/2+8" :y="pad+16" class="q-label" fill="#856404">VIGILAR</text>
-                <text :x="pad+8" :y="pad+(scatterH-pad*2)/2+16" class="q-label" fill="#555">REVISAR / LIQUIDAR</text>
-                <text :x="pad+(scatterW-pad*2)/2+8" :y="pad+(scatterH-pad*2)/2+16" class="q-label" fill="#c0392b">REPONER URGENTE</text>
-
-                <!-- Líneas divisorias -->
-                <line :x1="pad+(scatterW-pad*2)/2" :y1="pad" :x2="pad+(scatterW-pad*2)/2" :y2="scatterH-pad" stroke="#bbb" stroke-width="1" stroke-dasharray="5,4"/>
-                <line :x1="pad" :y1="pad+(scatterH-pad*2)/2" :x2="scatterW-pad" :y2="pad+(scatterH-pad*2)/2" stroke="#bbb" stroke-width="1" stroke-dasharray="5,4"/>
-
-                <!-- Ejes -->
-                <line :x1="pad" :y1="pad" :x2="pad" :y2="scatterH-pad" stroke="#ccc" stroke-width="1"/>
-                <line :x1="pad" :y1="scatterH-pad" :x2="scatterW-pad" :y2="scatterH-pad" stroke="#ccc" stroke-width="1"/>
-
-                <!-- Ticks eje X = Ventas -->
-                <g v-for="(t,i) in ventasTicks" :key="'x'+i">
-                  <line :x1="pad + (t/maxVentas)*(scatterW-pad*2)" :y1="scatterH-pad" :x2="pad + (t/maxVentas)*(scatterW-pad*2)" :y2="scatterH-pad+4" stroke="#ccc" stroke-width="1"/>
-                  <text :x="pad + (t/maxVentas)*(scatterW-pad*2)" :y="scatterH-pad+14" text-anchor="middle" font-size="10" fill="#888">{{ t }}</text>
-                </g>
-
-                <!-- Ticks eje Y = Stock -->
-                <g v-for="(t,i) in stockTicks" :key="'y'+i">
-                  <line :x1="pad-4" :y1="scatterH-pad - (t/maxStock)*(scatterH-pad*2)" :x2="pad" :y2="scatterH-pad - (t/maxStock)*(scatterH-pad*2)" stroke="#ccc" stroke-width="1"/>
-                  <text :x="pad-6" :y="scatterH-pad - (t/maxStock)*(scatterH-pad*2) + 4" text-anchor="end" font-size="10" fill="#888">{{ t }}</text>
-                </g>
-
-                <!-- Título eje X -->
-                <text :x="scatterW/2" :y="scatterH-2" text-anchor="middle" font-size="11" fill="#888">Ventas mensuales (unidades)</text>
-
-                <!-- Título eje Y -->
-                <text :x="12" :y="scatterH/2" text-anchor="middle" font-size="11" fill="#888" :transform="`rotate(-90, 12, ${scatterH/2})`">Stock actual (unidades)</text>
-
-                <!-- Puntos: X=ventas, Y=stock -->
-                <g v-for="p in dashboardData.inventario.matriz" :key="p.sku">
-                  <circle
-                    :cx="pad + (p.ventas/maxVentas)*(scatterW-pad*2)"
-                    :cy="scatterH-pad - (p.stock/maxStock)*(scatterH-pad*2)"
-                    r="7"
-                    :fill="colorPunto(p)"
-                    fill-opacity="0.85"
-                    stroke="white"
-                    stroke-width="1.5"
-                    class="scatter-punto"
-                  >
-                    <title>{{ p.nombre }} | Stock: {{ p.stock }} | Ventas: {{ p.ventas }} | DOH: {{ p.doh ? p.doh + ' días' : 'Baja rotación' }}</title>
-                  </circle>
-                </g>
-
-              </svg>
-            </div>
-
-            <!-- Tabla detalle con DOH -->
             <div class="matriz-tabla">
               <table>
                 <thead>
@@ -351,7 +290,7 @@
                 </thead>
                 <tbody>
                   <tr
-                    v-for="p in dashboardData.inventario.matriz" :key="p.sku"
+                    v-for="p in top5Matriz" :key="p.sku"
                     :class="{ 'fila-baja-rotacion': p.baja_rotacion }"
                   >
                     <td>{{ p.nombre }}</td>
@@ -371,6 +310,9 @@
                   </tr>
                 </tbody>
               </table>
+              <button class="btn-ver-detalle" @click="panelMatrizAbierto = true">
+                📋 Ver detalle completo ({{ dashboardData.inventario.matriz.length }} referencias)
+              </button>
             </div>
           </div>
           <p v-else class="sin-datos">Sin datos suficientes para la matriz</p>
@@ -406,6 +348,101 @@
       </div>
     </div>
 
+    <!-- Overlay matriz detalle -->
+    <div class="overlay" v-if="panelMatrizAbierto" @click.self="panelMatrizAbierto = false"></div>
+
+    <!-- Panel matriz detalle completo -->
+    <div class="panel panel-wide" :class="{ abierto: panelMatrizAbierto }">
+      <div class="panel-header">
+        <h2>🎯 Matriz de reposición — {{ almacenDashboard?.nombre }}</h2>
+        <button class="cerrar" @click="panelMatrizAbierto = false">✕</button>
+      </div>
+      <div class="panel-body" v-if="dashboardData">
+
+        <div class="matriz-leyenda">
+          <span class="ml urgente">🔴 Reponer urgente</span>
+          <span class="ml vigilar">🟡 Vigilar</span>
+          <span class="ml exceso">🔵 Exceso stock</span>
+          <span class="ml revisar">⚫ Revisar</span>
+          <span class="ml baja">⚠️ Baja rotación</span>
+        </div>
+
+        <!-- Scatter completo -->
+        <div class="scatter-wrap">
+          <svg :width="scatterW" :height="scatterH" class="scatter-svg">
+            <rect :x="pad" :y="pad" :width="(scatterW-pad*2)/2" :height="(scatterH-pad*2)/2" fill="rgba(55,138,221,0.08)"/>
+            <rect :x="pad+(scatterW-pad*2)/2" :y="pad" :width="(scatterW-pad*2)/2" :height="(scatterH-pad*2)/2" fill="rgba(239,159,39,0.08)"/>
+            <rect :x="pad" :y="pad+(scatterH-pad*2)/2" :width="(scatterW-pad*2)/2" :height="(scatterH-pad*2)/2" fill="rgba(136,135,128,0.08)"/>
+            <rect :x="pad+(scatterW-pad*2)/2" :y="pad+(scatterH-pad*2)/2" :width="(scatterW-pad*2)/2" :height="(scatterH-pad*2)/2" fill="rgba(226,75,74,0.08)"/>
+            <text :x="pad+8" :y="pad+16" class="q-label" fill="#185FA5">EXCESO DE STOCK</text>
+            <text :x="pad+(scatterW-pad*2)/2+8" :y="pad+16" class="q-label" fill="#856404">VIGILAR</text>
+            <text :x="pad+8" :y="pad+(scatterH-pad*2)/2+16" class="q-label" fill="#555">REVISAR / LIQUIDAR</text>
+            <text :x="pad+(scatterW-pad*2)/2+8" :y="pad+(scatterH-pad*2)/2+16" class="q-label" fill="#c0392b">REPONER URGENTE</text>
+            <line :x1="pad+(scatterW-pad*2)/2" :y1="pad" :x2="pad+(scatterW-pad*2)/2" :y2="scatterH-pad" stroke="#bbb" stroke-width="1" stroke-dasharray="5,4"/>
+            <line :x1="pad" :y1="pad+(scatterH-pad*2)/2" :x2="scatterW-pad" :y2="pad+(scatterH-pad*2)/2" stroke="#bbb" stroke-width="1" stroke-dasharray="5,4"/>
+            <line :x1="pad" :y1="pad" :x2="pad" :y2="scatterH-pad" stroke="#ccc" stroke-width="1"/>
+            <line :x1="pad" :y1="scatterH-pad" :x2="scatterW-pad" :y2="scatterH-pad" stroke="#ccc" stroke-width="1"/>
+            <g v-for="(t,i) in ventasTicks" :key="'x2'+i">
+              <line :x1="pad + (t/maxVentas)*(scatterW-pad*2)" :y1="scatterH-pad" :x2="pad + (t/maxVentas)*(scatterW-pad*2)" :y2="scatterH-pad+4" stroke="#ccc" stroke-width="1"/>
+              <text :x="pad + (t/maxVentas)*(scatterW-pad*2)" :y="scatterH-pad+14" text-anchor="middle" font-size="10" fill="#888">{{ t }}</text>
+            </g>
+            <g v-for="(t,i) in stockTicks" :key="'y2'+i">
+              <line :x1="pad-4" :y1="scatterH-pad - (t/maxStock)*(scatterH-pad*2)" :x2="pad" :y2="scatterH-pad - (t/maxStock)*(scatterH-pad*2)" stroke="#ccc" stroke-width="1"/>
+              <text :x="pad-6" :y="scatterH-pad - (t/maxStock)*(scatterH-pad*2) + 4" text-anchor="end" font-size="10" fill="#888">{{ t }}</text>
+            </g>
+            <text :x="scatterW/2" :y="scatterH-2" text-anchor="middle" font-size="11" fill="#888">Ventas mensuales (unidades)</text>
+            <text :x="12" :y="scatterH/2" text-anchor="middle" font-size="11" fill="#888" :transform="`rotate(-90, 12, ${scatterH/2})`">Stock actual (unidades)</text>
+            <g v-for="p in dashboardData.inventario.matriz" :key="'dot-'+p.sku">
+              <circle
+                :cx="pad + (p.ventas/maxVentas)*(scatterW-pad*2)"
+                :cy="scatterH-pad - (p.stock/maxStock)*(scatterH-pad*2)"
+                r="7" :fill="colorPunto(p)" fill-opacity="0.85"
+                stroke="white" stroke-width="1.5" class="scatter-punto"
+              >
+                <title>{{ p.nombre }} | Stock: {{ p.stock }} | Ventas: {{ p.ventas }} | DOH: {{ p.doh ? p.doh + ' días' : 'Baja rotación' }}</title>
+              </circle>
+            </g>
+          </svg>
+        </div>
+
+        <!-- Tabla completa ordenada -->
+        <div class="matriz-tabla">
+          <table>
+            <thead>
+              <tr>
+                <th>Producto</th>
+                <th>Stock</th>
+                <th>Ventas 30d</th>
+                <th>DOH</th>
+                <th>Estado</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr
+                v-for="p in matrizOrdenada" :key="'det-'+p.sku"
+                :class="{ 'fila-baja-rotacion': p.baja_rotacion }"
+              >
+                <td>{{ p.nombre }}</td>
+                <td>{{ p.stock }}</td>
+                <td>{{ p.ventas_30 }}</td>
+                <td>
+                  <span v-if="p.baja_rotacion" class="badge-baja-rotacion">⚠️ Baja rotación</span>
+                  <span v-else-if="p.doh <= 7" class="badge-doh-critico">🔴 {{ p.doh }}d</span>
+                  <span v-else-if="p.doh <= 15" class="badge-doh-alerta">🟡 {{ p.doh }}d</span>
+                  <span v-else class="badge-doh-ok">🟢 {{ p.doh }}d</span>
+                </td>
+                <td>
+                  <span :class="'badge-' + clasificarProducto(p)">
+                    {{ etiquetaProducto(p) }}
+                  </span>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
   </div>
 </template>
 
@@ -435,6 +472,7 @@ export default {
       almacenDashboard: null,
       dashboardData: null,
       cargandoDashboard: false,
+      panelMatrizAbierto: false,
       filtroDias: 30,
       filtroSoloAyer: false,
       filtros: [
@@ -488,6 +526,26 @@ export default {
       const ticks = []
       for (let i = 0; i <= max; i += step) ticks.push(Math.round(i))
       return ticks
+    },
+    top5Matriz() {
+      if (!this.dashboardData?.inventario?.matriz?.length) return []
+      const orden = { urgente: 0, baja: 1, vigilar: 2, exceso: 3, revisar: 4 }
+      return [...this.dashboardData.inventario.matriz]
+        .sort((a, b) => {
+          const ca = a.baja_rotacion ? 'baja' : this.clasificarProducto(a)
+          const cb = b.baja_rotacion ? 'baja' : this.clasificarProducto(b)
+          return (orden[ca] ?? 5) - (orden[cb] ?? 5)
+        })
+        .slice(0, 5)
+    },
+    matrizOrdenada() {
+      if (!this.dashboardData?.inventario?.matriz?.length) return []
+      const orden = { urgente: 0, baja: 1, vigilar: 2, exceso: 3, revisar: 4 }
+      return [...this.dashboardData.inventario.matriz].sort((a, b) => {
+        const ca = a.baja_rotacion ? 'baja' : this.clasificarProducto(a)
+        const cb = b.baja_rotacion ? 'baja' : this.clasificarProducto(b)
+        return (orden[ca] ?? 5) - (orden[cb] ?? 5)
+      })
     },
   },
   methods: {
@@ -640,11 +698,7 @@ export default {
 
 <style scoped>
 h1 { margin-bottom: 24px; color: #1B3A6B; }
-table {
-  width: 100%; border-collapse: collapse;
-  background: white; border-radius: 8px;
-  overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-}
+table { width: 100%; border-collapse: collapse; background: white; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
 thead { background: #1B3A6B; color: white; }
 th, td { padding: 12px 16px; text-align: left; font-size: 14px; }
 tbody tr:nth-child(even) { background: #F2F4F7; }
@@ -657,11 +711,7 @@ tbody tr:hover { background: #D6E4F7; }
 .btn-etiqueta { padding: 5px 10px; background: #1E7E50; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 12px; }
 .btn-tallas { padding: 5px 10px; background: #8C9BAB; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 12px; }
 .overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.3); z-index: 100; }
-.panel {
-  position: fixed; top: 0; right: -700px; width: 700px; height: 100%;
-  background: white; box-shadow: -4px 0 20px rgba(0,0,0,0.15);
-  z-index: 101; transition: right 0.3s ease; display: flex; flex-direction: column;
-}
+.panel { position: fixed; top: 0; right: -700px; width: 700px; height: 100%; background: white; box-shadow: -4px 0 20px rgba(0,0,0,0.15); z-index: 101; transition: right 0.3s ease; display: flex; flex-direction: column; }
 .panel-wide { width: 850px; right: -850px; }
 .panel.abierto { right: 0; }
 .panel-header { display: flex; justify-content: space-between; align-items: center; padding: 20px 24px; background: #1B3A6B; color: white; }
@@ -719,6 +769,8 @@ tbody tr:hover { background: #D6E4F7; }
 .q-label { font-size: 10px; font-weight: 600; letter-spacing: 0.3px; }
 .matriz-tabla { overflow-x: auto; margin-top: 12px; }
 .fila-baja-rotacion { background: #fffbf0 !important; }
+.btn-ver-detalle { width: 100%; margin-top: 12px; padding: 10px; background: #F2F4F7; color: #1B3A6B; border: 1px solid #D6E4F7; border-radius: 8px; cursor: pointer; font-size: 13px; font-weight: 500; }
+.btn-ver-detalle:hover { background: #D6E4F7; }
 .badge-urgente { background: #fde8e8; color: #c0392b; padding: 2px 8px; border-radius: 10px; font-size: 11px; white-space: nowrap; }
 .badge-vigilar { background: #fff3cd; color: #856404; padding: 2px 8px; border-radius: 10px; font-size: 11px; white-space: nowrap; }
 .badge-exceso  { background: #D6E4F7; color: #1B3A6B; padding: 2px 8px; border-radius: 10px; font-size: 11px; white-space: nowrap; }
