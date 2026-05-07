@@ -12,9 +12,13 @@
 
 <script>
 import Sidebar from './components/Sidebar.vue'
+import { useKeepAlive } from './composables/useKeepAlive'
 
 export default {
   components: { Sidebar },
+  setup() {
+    useKeepAlive(10)
+  },
   data() {
     return {
       sidebarVisible: true
