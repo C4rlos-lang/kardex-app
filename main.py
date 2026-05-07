@@ -966,3 +966,13 @@ def entrada_mercancia(entrada: EntradaSchema, db: Session = Depends(get_db)):
 
     db.commit()
     return {"mensaje": "Entrada registrada", "stock_actual": producto.stock}
+
+from datetime import datetime
+
+@app.get("/health")
+def health_check():
+    return {
+        "status": "ok",
+        "timestamp": datetime.utcnow().isoformat(),
+        "service": "Solitica Inventarios API"
+    }
